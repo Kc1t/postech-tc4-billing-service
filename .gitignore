@@ -19,3 +19,6 @@ coverage.html
 .DS_Store
 .claude/
 vendor/
+golangci-report.xml
+gosec-report.json
+.scannerwork/
