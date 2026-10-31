@@ -30,7 +30,7 @@ func TestRequestPayment_CriaLink(t *testing.T) {
 		return nil
 	})
 	f.gateway.EXPECT().CreateCheckout(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, req ports.CheckoutRequest) (string, string, error) {
-		if req.PaymentID != created.ID() || req.BudgetID != b.ID() || req.OSCode != 7 || req.Amount != 151 || req.PayerEmail != "ana@example.com" {
+		if req.PaymentID != created.ID() || req.BudgetID != b.ID() || req.OSCode != 7 || req.Amount != 151 {
 			t.Fatalf("checkout com dados errados: %+v", req)
 		}
 		return "pref-1", "https://mp/checkout?pref_id=pref-1", nil

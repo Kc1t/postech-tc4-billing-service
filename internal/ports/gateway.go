@@ -47,12 +47,10 @@ type ProviderPayment struct {
 
 // CheckoutRequest são os dados da cobrança a criar no provedor.
 type CheckoutRequest struct {
-	PaymentID  string // vai como external_reference: é como o webhook volta ao nosso pagamento
-	BudgetID   string
-	OSCode     int
-	Amount     float64
-	PayerEmail string
-	PayerName  string
+	PaymentID string // vai como external_reference: é como o webhook volta ao nosso pagamento
+	BudgetID  string
+	OSCode    int
+	Amount    float64
 }
 
 // PaymentGateway é a porta para o provedor de pagamento (Mercado Pago ou fake).

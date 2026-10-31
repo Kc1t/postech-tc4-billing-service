@@ -71,12 +71,10 @@ func (uc *RequestPayment) Execute(ctx context.Context, cmd ports.RequestPaymentC
 		}
 
 		prefID, url, err := uc.gateway.CreateCheckout(ctx, ports.CheckoutRequest{
-			PaymentID:  p.ID(),
-			BudgetID:   b.ID(),
-			OSCode:     b.OSCode(),
-			Amount:     p.Amount(),
-			PayerEmail: b.Requester().Email,
-			PayerName:  b.Requester().Name,
+			PaymentID: p.ID(),
+			BudgetID:  b.ID(),
+			OSCode:    b.OSCode(),
+			Amount:    p.Amount(),
 		})
 		if errors.Is(err, ports.ErrGatewayRejected) {
 			return uc.fail(ctx, tx, cmd.Meta, p, "provedor recusou a criação do checkout: "+err.Error())
