@@ -25,7 +25,7 @@ import (
 // @description     JWT HS256 no formato "Bearer {token}" (claims sub, role e, para clientes, document).
 func main() {
 	cfg := config.Load()
-	log := logger.New(cfg.LogLevel)
+	log := logger.New(cfg.LogLevel).With("service", "billing-service")
 	if cfg.AppEnv == config.EnvProduction {
 		gin.SetMode(gin.ReleaseMode)
 	}
