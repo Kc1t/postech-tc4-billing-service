@@ -38,7 +38,7 @@ type SimulateRequest struct {
 // @Failure     403 {object} httputil.ErrorResponse
 // @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
-// @Router      /payments/{id} [get]
+// @Router      /api/v1/payments/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
 	p, err := h.get.Execute(c.Request.Context(), c.Param("id"), httputil.ActorFrom(c))
 	if err != nil {
@@ -63,7 +63,7 @@ func (h *Handler) Get(c *gin.Context) {
 // @Failure     404  {object} httputil.ErrorResponse
 // @Failure     409  {object} httputil.ErrorResponse
 // @Security    BearerAuth
-// @Router      /payments/{id}/simulate [post]
+// @Router      /api/v1/payments/{id}/simulate [post]
 func (h *Handler) Simulate(c *gin.Context) {
 	var req SimulateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

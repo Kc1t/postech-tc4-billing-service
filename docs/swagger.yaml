@@ -1,0 +1,504 @@
+basePath: /
+definitions:
+  budgethandler.RejectRequest:
+    properties:
+      reason:
+        example: Vou fazer o reparo em outro momento
+        maxLength: 500
+        type: string
+    required:
+    - reason
+    type: object
+  healthhandler.Status:
+    properties:
+      checks:
+        additionalProperties:
+          type: string
+        type: object
+      status:
+        enum:
+        - ok
+        - unavailable
+        example: ok
+        type: string
+    type: object
+  httputil.ErrorBody:
+    properties:
+      code:
+        example: BUDGET_NOT_FOUND
+        type: string
+      message:
+        example: orçamento não encontrado
+        type: string
+    type: object
+  httputil.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/httputil.ErrorBody'
+    type: object
+  paymenthandler.SimulateRequest:
+    properties:
+      status:
+        enum:
+        - approved
+        - rejected
+        example: approved
+        type: string
+    required:
+    - status
+    type: object
+  presenter.BudgetResponse:
+    properties:
+      created_at:
+        type: string
+      decided_at:
+        type: string
+      id:
+        example: 6f1c2a7e-0002-4a51-9a3e-000000000002
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/presenter.ItemResponse'
+        type: array
+      os_code:
+        example: 9002
+        type: integer
+      os_id:
+        type: string
+      payment:
+        $ref: '#/definitions/presenter.PaymentResponse'
+      reason:
+        type: string
+      requester:
+        $ref: '#/definitions/presenter.RequesterResponse'
+      saga_id:
+        type: string
+      status:
+        enum:
+        - pending_approval
+        - approved
+        - rejected
+        - cancelled
+        example: pending_approval
+        type: string
+      total:
+        example: 399.9
+        type: number
+      updated_at:
+        type: string
+    type: object
+  presenter.ItemResponse:
+    properties:
+      description:
+        example: Jogo de pastilhas dianteiras
+        type: string
+      kind:
+        example: part
+        type: string
+      quantity:
+        example: 1
+        type: integer
+      ref:
+        example: PST-DIANT
+        type: string
+      subtotal:
+        example: 219.9
+        type: number
+      unit_price:
+        example: 219.9
+        type: number
+    type: object
+  presenter.PaymentResponse:
+    properties:
+      amount:
+        example: 399.9
+        type: number
+      budget_id:
+        type: string
+      checkout_url:
+        example: https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=...
+        type: string
+      created_at:
+        type: string
+      failure_reason:
+        type: string
+      id:
+        example: 7a2d3b8f-0002-4b62-8b4f-000000000002
+        type: string
+      os_id:
+        type: string
+      provider:
+        enum:
+        - mercadopago
+        - fake
+        example: mercadopago
+        type: string
+      provider_payment_id:
+        example: "1325432423"
+        type: string
+      refunded_at:
+        type: string
+      status:
+        enum:
+        - created
+        - pending
+        - approved
+        - failed
+        - cancelled
+        - refunded
+        example: pending
+        type: string
+      updated_at:
+        type: string
+    type: object
+  presenter.RequesterResponse:
+    properties:
+      email:
+        example: maria@example.com
+        type: string
+      id:
+        type: string
+      name:
+        example: Maria Silva
+        type: string
+    type: object
+  webhookhandler.AckResponse:
+    properties:
+      status:
+        enum:
+        - processed
+        - ignored
+        example: processed
+        type: string
+    type: object
+info:
+  contact: {}
+  description: |-
+    Orçamento e pagamento da ordem de serviço. Participa da saga orquestrada pelo os-service:
+    consome comandos da fila billing-commands, publica eventos no tópico billing-events (via outbox)
+    e integra com o Mercado Pago (Checkout Pro + webhook assinado) ou com um gateway fake.
+  title: Billing Service — Oficina Mecânica
+  version: "1.0"
+paths:
+  /api/v1/budgets/{id}:
+    get:
+      description: Orçamento com itens, total, status e a cobrança mais recente. Admin
+        vê todos; cliente só os do próprio CPF.
+      parameters:
+      - description: ID do orçamento (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/presenter.BudgetResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Consultar orçamento por ID
+      tags:
+      - budgets
+  /api/v1/budgets/{id}/approve:
+    post:
+      description: Só o cliente dono (token emitido pelo CPF) e só em pending_approval.
+        Publica billing.BudgetApproved.
+      parameters:
+      - description: ID do orçamento (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/presenter.BudgetResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Aprovar orçamento
+      tags:
+      - budgets
+  /api/v1/budgets/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: Só o cliente dono e só em pending_approval; motivo obrigatório.
+        Publica billing.BudgetRejected.
+      parameters:
+      - description: ID do orçamento (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Motivo da recusa
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/budgethandler.RejectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/presenter.BudgetResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Recusar orçamento
+      tags:
+      - budgets
+  /api/v1/budgets/os/{os_id}:
+    get:
+      description: Usado pela API composition do os-service (GET /service-orders/{id}/details).
+      parameters:
+      - description: ID da OS
+        in: path
+        name: os_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/presenter.BudgetResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Consultar orçamento da ordem de serviço
+      tags:
+      - budgets
+  /api/v1/payments/{id}:
+    get:
+      description: Status da cobrança e checkout_url. Admin vê todos; cliente só os
+        do próprio CPF.
+      parameters:
+      - description: ID do pagamento (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/presenter.PaymentResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Consultar pagamento
+      tags:
+      - payments
+  /api/v1/payments/{id}/simulate:
+    post:
+      consumes:
+      - application/json
+      description: 'Só admin e só com PAYMENT_GATEWAY=fake. Aplica o resultado pelas
+        mesmas regras do webhook real: approved publica billing.PaymentApproved; rejected
+        publica billing.PaymentFailed.'
+      parameters:
+      - description: ID do pagamento (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Resultado simulado
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/paymenthandler.SimulateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/presenter.PaymentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Simular retorno do provedor (gateway fake)
+      tags:
+      - payments
+  /api/v1/webhooks/mercadopago:
+    post:
+      consumes:
+      - application/json
+      description: Rota pública. Valida x-signature (HMAC-SHA256 do manifest id:{data.id};request-id:{x-request-id};ts:{ts};
+        com MP_WEBHOOK_SECRET) e relê o pagamento em GET /v1/payments/{data.id}. Notificações
+        que não são de pagamento (ou sem data.id na query) são confirmadas e ignoradas.
+        5xx faz o Mercado Pago reentregar.
+      parameters:
+      - description: ID do pagamento no Mercado Pago
+        in: query
+        name: data.id
+        required: true
+        type: string
+      - description: Tipo do recurso (payment)
+        in: query
+        name: type
+        type: string
+      - description: ts=...,v1=...
+        in: header
+        name: x-signature
+        required: true
+        type: string
+      - description: ID da notificação
+        in: header
+        name: x-request-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webhookhandler.AckResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+      summary: Webhook do Mercado Pago
+      tags:
+      - webhooks
+  /health/live:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/healthhandler.Status'
+      summary: Liveness
+      tags:
+      - health
+  /health/ready:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/healthhandler.Status'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/healthhandler.Status'
+      summary: Readiness (banco e AWS)
+      tags:
+      - health
+securityDefinitions:
+  BearerAuth:
+    description: JWT HS256 no formato "Bearer {token}" (claims sub, role e, para clientes,
+      document).
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

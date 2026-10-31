@@ -49,7 +49,7 @@ type notificationBody struct {
 // @Success     200 {object} AckResponse
 // @Failure     401 {object} httputil.ErrorResponse
 // @Failure     503 {object} httputil.ErrorResponse
-// @Router      /webhooks/mercadopago [post]
+// @Router      /api/v1/webhooks/mercadopago [post]
 func (h *Handler) MercadoPago(c *gin.Context) {
 	log := logger.FromContext(c.Request.Context())
 	dataID := c.Query("data.id")

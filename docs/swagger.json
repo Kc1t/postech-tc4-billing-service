@@ -1,0 +1,739 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Orçamento e pagamento da ordem de serviço. Participa da saga orquestrada pelo os-service:\nconsome comandos da fila billing-commands, publica eventos no tópico billing-events (via outbox)\ne integra com o Mercado Pago (Checkout Pro + webhook assinado) ou com um gateway fake.",
+        "title": "Billing Service — Oficina Mecânica",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/api/v1/budgets/os/{os_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Usado pela API composition do os-service (GET /service-orders/{id}/details).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "budgets"
+                ],
+                "summary": "Consultar orçamento da ordem de serviço",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da OS",
+                        "name": "os_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/presenter.BudgetResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/budgets/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Orçamento com itens, total, status e a cobrança mais recente. Admin vê todos; cliente só os do próprio CPF.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "budgets"
+                ],
+                "summary": "Consultar orçamento por ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do orçamento (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/presenter.BudgetResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/budgets/{id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Só o cliente dono (token emitido pelo CPF) e só em pending_approval. Publica billing.BudgetApproved.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "budgets"
+                ],
+                "summary": "Aprovar orçamento",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do orçamento (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/presenter.BudgetResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/budgets/{id}/reject": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Só o cliente dono e só em pending_approval; motivo obrigatório. Publica billing.BudgetRejected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "budgets"
+                ],
+                "summary": "Recusar orçamento",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do orçamento (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Motivo da recusa",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/budgethandler.RejectRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/presenter.BudgetResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/payments/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Status da cobrança e checkout_url. Admin vê todos; cliente só os do próprio CPF.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payments"
+                ],
+                "summary": "Consultar pagamento",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do pagamento (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/presenter.PaymentResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/payments/{id}/simulate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Só admin e só com PAYMENT_GATEWAY=fake. Aplica o resultado pelas mesmas regras do webhook real: approved publica billing.PaymentApproved; rejected publica billing.PaymentFailed.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payments"
+                ],
+                "summary": "Simular retorno do provedor (gateway fake)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do pagamento (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Resultado simulado",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/paymenthandler.SimulateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/presenter.PaymentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/webhooks/mercadopago": {
+            "post": {
+                "description": "Rota pública. Valida x-signature (HMAC-SHA256 do manifest id:{data.id};request-id:{x-request-id};ts:{ts}; com MP_WEBHOOK_SECRET) e relê o pagamento em GET /v1/payments/{data.id}. Notificações que não são de pagamento (ou sem data.id na query) são confirmadas e ignoradas. 5xx faz o Mercado Pago reentregar.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "webhooks"
+                ],
+                "summary": "Webhook do Mercado Pago",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do pagamento no Mercado Pago",
+                        "name": "data.id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tipo do recurso (payment)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ts=...,v1=...",
+                        "name": "x-signature",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da notificação",
+                        "name": "x-request-id",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/webhookhandler.AckResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/health/live": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Liveness",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/healthhandler.Status"
+                        }
+                    }
+                }
+            }
+        },
+        "/health/ready": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Readiness (banco e AWS)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/healthhandler.Status"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/healthhandler.Status"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "budgethandler.RejectRequest": {
+            "type": "object",
+            "required": [
+                "reason"
+            ],
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Vou fazer o reparo em outro momento"
+                }
+            }
+        },
+        "healthhandler.Status": {
+            "type": "object",
+            "properties": {
+                "checks": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "ok",
+                        "unavailable"
+                    ],
+                    "example": "ok"
+                }
+            }
+        },
+        "httputil.ErrorBody": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "BUDGET_NOT_FOUND"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "orçamento não encontrado"
+                }
+            }
+        },
+        "httputil.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/httputil.ErrorBody"
+                }
+            }
+        },
+        "paymenthandler.SimulateRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "approved",
+                        "rejected"
+                    ],
+                    "example": "approved"
+                }
+            }
+        },
+        "presenter.BudgetResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "decided_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "6f1c2a7e-0002-4a51-9a3e-000000000002"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/presenter.ItemResponse"
+                    }
+                },
+                "os_code": {
+                    "type": "integer",
+                    "example": 9002
+                },
+                "os_id": {
+                    "type": "string"
+                },
+                "payment": {
+                    "$ref": "#/definitions/presenter.PaymentResponse"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "requester": {
+                    "$ref": "#/definitions/presenter.RequesterResponse"
+                },
+                "saga_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "pending_approval",
+                        "approved",
+                        "rejected",
+                        "cancelled"
+                    ],
+                    "example": "pending_approval"
+                },
+                "total": {
+                    "type": "number",
+                    "example": 399.9
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "presenter.ItemResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Jogo de pastilhas dianteiras"
+                },
+                "kind": {
+                    "type": "string",
+                    "example": "part"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "ref": {
+                    "type": "string",
+                    "example": "PST-DIANT"
+                },
+                "subtotal": {
+                    "type": "number",
+                    "example": 219.9
+                },
+                "unit_price": {
+                    "type": "number",
+                    "example": 219.9
+                }
+            }
+        },
+        "presenter.PaymentResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "example": 399.9
+                },
+                "budget_id": {
+                    "type": "string"
+                },
+                "checkout_url": {
+                    "type": "string",
+                    "example": "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=..."
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "failure_reason": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "7a2d3b8f-0002-4b62-8b4f-000000000002"
+                },
+                "os_id": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string",
+                    "enum": [
+                        "mercadopago",
+                        "fake"
+                    ],
+                    "example": "mercadopago"
+                },
+                "provider_payment_id": {
+                    "type": "string",
+                    "example": "1325432423"
+                },
+                "refunded_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "created",
+                        "pending",
+                        "approved",
+                        "failed",
+                        "cancelled",
+                        "refunded"
+                    ],
+                    "example": "pending"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "presenter.RequesterResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "maria@example.com"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Maria Silva"
+                }
+            }
+        },
+        "webhookhandler.AckResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "processed",
+                        "ignored"
+                    ],
+                    "example": "processed"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "JWT HS256 no formato \"Bearer {token}\" (claims sub, role e, para clientes, document).",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

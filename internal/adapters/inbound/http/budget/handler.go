@@ -40,7 +40,7 @@ type RejectRequest struct {
 // @Failure     403 {object} httputil.ErrorResponse
 // @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
-// @Router      /budgets/{id} [get]
+// @Router      /api/v1/budgets/{id} [get]
 func (h *Handler) GetByID(c *gin.Context) {
 	v, err := h.getByID.Execute(c.Request.Context(), c.Param("id"), httputil.ActorFrom(c))
 	if err != nil {
@@ -61,7 +61,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 // @Failure     403   {object} httputil.ErrorResponse
 // @Failure     404   {object} httputil.ErrorResponse
 // @Security    BearerAuth
-// @Router      /budgets/os/{os_id} [get]
+// @Router      /api/v1/budgets/os/{os_id} [get]
 func (h *Handler) GetByOS(c *gin.Context) {
 	v, err := h.getByOS.Execute(c.Request.Context(), c.Param("os_id"), httputil.ActorFrom(c))
 	if err != nil {
@@ -83,7 +83,7 @@ func (h *Handler) GetByOS(c *gin.Context) {
 // @Failure     404 {object} httputil.ErrorResponse
 // @Failure     409 {object} httputil.ErrorResponse
 // @Security    BearerAuth
-// @Router      /budgets/{id}/approve [post]
+// @Router      /api/v1/budgets/{id}/approve [post]
 func (h *Handler) Approve(c *gin.Context) {
 	b, err := h.approve.Execute(c.Request.Context(), ports.DecideBudgetInput{
 		BudgetID: c.Param("id"), Actor: httputil.ActorFrom(c), CorrelationID: httputil.CorrelationID(c),
@@ -110,7 +110,7 @@ func (h *Handler) Approve(c *gin.Context) {
 // @Failure     404  {object} httputil.ErrorResponse
 // @Failure     409  {object} httputil.ErrorResponse
 // @Security    BearerAuth
-// @Router      /budgets/{id}/reject [post]
+// @Router      /api/v1/budgets/{id}/reject [post]
 func (h *Handler) Reject(c *gin.Context) {
 	var req RejectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
