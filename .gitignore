@@ -1,0 +1,21 @@
+# Binários e artefatos de build
+/billing-service
+/bin/
+*.exe
+*.test
+
+# Cobertura
+coverage*.out
+coverage.html
+
+# Configuração local
+.env
+*.env
+!.env.example
+
+# Editores e ferramentas
+.idea/
+.vscode/
+.DS_Store
+.claude/
+vendor/
