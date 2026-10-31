@@ -1,0 +1,34 @@
+version: "2"
+run:
+  timeout: 5m
+  build-tags:
+    - component
+linters:
+  enable:
+    - bodyclose
+    - errorlint
+    - gosec
+    - noctx
+    - unconvert
+  settings:
+    gosec:
+      excludes:
+        - G104 # coberto pelo errcheck
+  exclusions:
+    paths:
+      # pkg/ é o chassis copiado literalmente do os-service: ajustes são feitos lá e copiados.
+      - pkg/
+      - docs/
+      - internal/ports/mocks/
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx, bodyclose]
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    paths:
+      - pkg/
+      - docs/
+      - internal/ports/mocks/

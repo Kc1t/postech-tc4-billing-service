@@ -197,7 +197,7 @@ func (g *Gateway) call(ctx context.Context, method, path string, body any, heade
 		return nil
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(out); err != nil {
-		return fmt.Errorf("%w: resposta inválida de %s %s: %v", ports.ErrGatewayUnavailable, method, path, err)
+		return fmt.Errorf("%w: resposta inválida de %s %s: %w", ports.ErrGatewayUnavailable, method, path, err)
 	}
 	return nil
 }
