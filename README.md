@@ -4,7 +4,7 @@ Microsserviço da Fase 4 do Tech Challenge FIAP SOAT (oficina mecânica). Cuida 
 
 - Go 1.26, Gin, GORM + PostgreSQL próprio, SNS/SQS (LocalStack em desenvolvimento), New Relic e logs JSON (`log/slog`).
 - Arquitetura hexagonal, no mesmo desenho do `os-service`, e chassis de mensageria/outbox/inbox/observabilidade copiado de lá (`pkg/`).
-- Cobertura de testes de **96,5%** (sem contar `cmd/`, `docs/`, `mocks/` e `test/`), com repositórios testados contra Postgres real e um teste de componente com Postgres + LocalStack.
+- Cobertura de testes de **95,7%** (sem contar `cmd/`, `docs/`, `mocks/` e `test/`), com repositórios testados contra Postgres real e um teste de componente com Postgres + LocalStack.
 
 ## Sumário
 
@@ -322,7 +322,7 @@ Variáveis dos testes de banco: `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER`, 
 - **Integração**: repositórios, unit of work, outbox e inbox contra Postgres real. Adapter do Mercado Pago contra `httptest`, com um vetor HMAC conhecido.
 - **Componente** (`test/component`): sobe o serviço inteiro em processo. Cada execução cria um banco, fila, tópico e fila observadora únicos. Os cenários cobrem: caminho feliz com o gateway fake (`CreateBudget → BudgetCreated → aprovação HTTP → RequestPayment → PaymentLinkCreated → simulate → PaymentApproved → RefundPayment → PaymentRefunded`), reentrega e idempotência por `os_id`, recusa, cancelamento com pagamento pendente, fault injection e o adapter real do Mercado Pago contra uma API fake com webhook assinado e estorno com idempotency key.
 
-Cobertura atual por pacote (`make cover`): domínio 99,4%, casos de uso 97,4% (budget) e 96,6% (payment), adapters HTTP e de mensageria 100%, Mercado Pago 97,4%, Postgres 92,3%, config 100%. Total: **96,2%**.
+Cobertura atual por pacote (`make cover`): domínio 99,4%, casos de uso 97,4% (budget) e 96,6% (payment), adapters HTTP e de mensageria 100%, Mercado Pago 97,4%, Postgres 92,3%, config 100%, chassis `pkg/` entre 80% e 100% (outbox 89,2%, contratos 93,5%). Total: **95,7%**.
 
 ## CI/CD e qualidade
 
@@ -338,7 +338,7 @@ Pipeline próprio em [`.github/workflows/ci.yml`](.github/workflows/ci.yml), ind
 | `image` | build da imagem e Trivy (CRITICAL com correção bloqueia) |
 | `deploy` | só na `main`, depois de todos os anteriores e com `AWS_DEPLOY_ENABLED=true`: `terraform apply` do RDS (DSN lida do Secrets Manager), imagem no ECR, Secret e manifests no EKS, `rollout status` e smoke test em `/health/ready` pelo NLB |
 
-**Evidência de cobertura:** **96,2%** no `make cover` e 95,4% no SonarQube, com o quality gate aprovado (0 bugs, 0 vulnerabilidades, 0 code smells, 0% de duplicação). Cada execução do CI publica a cobertura e a tabela do SonarQube no resumo do job.
+**Evidência de cobertura:** **95,7%** no `make cover` e 94,7% no SonarQube, com o quality gate aprovado (0 bugs, 0 vulnerabilidades, 0 code smells, 0% de duplicação). Cada execução do CI publica a cobertura e a tabela do SonarQube no resumo do job.
 
 ## Observabilidade
 
