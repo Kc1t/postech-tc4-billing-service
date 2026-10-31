@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -24,11 +26,17 @@ type PoolConfig struct {
 	ConnMaxLifetime time.Duration
 }
 
-// Open conecta ao Postgres. O log do GORM fica em Warn: consultas lentas e erros aparecem, o
-// SQL de cada operação não (evita vazar dados de cliente nos logs).
+// Open conecta ao Postgres. O log do GORM fica em Warn, sem cor e com consultas parametrizadas:
+// consultas lentas e erros aparecem, mas sem os valores (CPF, e-mail) — e "record not found",
+// que é fluxo normal (404, idempotência), não vira ruído.
 func Open(dsn string, pool PoolConfig) (*gorm.DB, error) {
 	db, err := gorm.Open(gormpostgres.Open(dsn), &gorm.Config{
-		Logger:                 gormlogger.Default.LogMode(gormlogger.Warn),
+		Logger: gormlogger.New(log.New(os.Stderr, "", log.LstdFlags), gormlogger.Config{
+			SlowThreshold:             500 * time.Millisecond,
+			LogLevel:                  gormlogger.Warn,
+			IgnoreRecordNotFoundError: true,
+			ParameterizedQueries:      true,
+		}),
 		SkipDefaultTransaction: true,
 		NowFunc:                func() time.Time { return time.Now().UTC() },
 	})
