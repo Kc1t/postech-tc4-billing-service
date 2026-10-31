@@ -322,7 +322,23 @@ Variáveis dos testes de banco: `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER`, 
 - **Integração**: repositórios, unit of work, outbox e inbox contra Postgres real. Adapter do Mercado Pago contra `httptest`, com um vetor HMAC conhecido.
 - **Componente** (`test/component`): sobe o serviço inteiro em processo. Cada execução cria um banco, fila, tópico e fila observadora únicos. Os cenários cobrem: caminho feliz com o gateway fake (`CreateBudget → BudgetCreated → aprovação HTTP → RequestPayment → PaymentLinkCreated → simulate → PaymentApproved → RefundPayment → PaymentRefunded`), reentrega e idempotência por `os_id`, recusa, cancelamento com pagamento pendente, fault injection e o adapter real do Mercado Pago contra uma API fake com webhook assinado e estorno com idempotency key.
 
-Cobertura atual por pacote (`make cover`): domínio 99,4%, casos de uso 97,4% (budget) e 96,6% (payment), adapters HTTP e de mensageria 100%, Mercado Pago 97,4%, Postgres 92,3%, config 100%. Total: **96,5%**.
+Cobertura atual por pacote (`make cover`): domínio 99,4%, casos de uso 97,4% (budget) e 96,6% (payment), adapters HTTP e de mensageria 100%, Mercado Pago 97,4%, Postgres 92,3%, config 100%. Total: **96,2%**.
+
+## CI/CD e qualidade
+
+Pipeline próprio em [`.github/workflows/ci.yml`](.github/workflows/ci.yml), independente dos outros serviços. A `main` é protegida: só recebe PR, com os jobs abaixo obrigatórios.
+
+| Job | O que faz |
+|---|---|
+| `quality` | `go mod tidy` sem diff, gofmt, `go vet` (também com a tag `component`), golangci-lint, gosec (falha a partir de severidade média), govulncheck e Swagger em dia com o código |
+| `tests` | dependências de teste em container, `make cover` e cobertura mínima de 80% |
+| `component` | teste de componente com Postgres e LocalStack (`make test-component`) |
+| `sonarqube` | SonarQube Community num container do job, com quality gate próprio: cobertura ≥ 80%, duplicação ≤ 3% e nota A em confiabilidade, segurança e manutenibilidade |
+| `terraform` | fmt, validate e tfsec do `infra/` |
+| `image` | build da imagem e Trivy (CRITICAL com correção bloqueia) |
+| `deploy` | só na `main`, depois de todos os anteriores e com `AWS_DEPLOY_ENABLED=true`: `terraform apply` do RDS (DSN lida do Secrets Manager), imagem no ECR, Secret e manifests no EKS, `rollout status` e smoke test em `/health/ready` pelo NLB |
+
+**Evidência de cobertura:** **96,2%** no `make cover` e 95,4% no SonarQube, com o quality gate aprovado (0 bugs, 0 vulnerabilidades, 0 code smells, 0% de duplicação). Cada execução do CI publica a cobertura e a tabela do SonarQube no resumo do job.
 
 ## Observabilidade
 
@@ -350,5 +366,5 @@ Os manifestos ficam em `k8s/` e não declaram namespace. Os `*_PLACEHOLDER` são
 - **401/403 do Mercado Pago contam como transitórios** (token rotacionado ou expirado não deve virar `PaymentFailed` definitivo). Um estorno recusado de forma definitiva vai para a DLQ para tratamento manual, porque não existe compensação da compensação.
 - **Pagamento órfão**: um `approved` que chega para uma tentativa cancelada ou falha é estornado automaticamente (idempotency key `orphan-{id}`).
 - **Rejeição definitiva**: o Mercado Pago permite tentar de novo depois de um `rejected`, mas para a saga o `rejected` encerra o pagamento (`PaymentFailed`).
-- **Chassis**: copiado do `os-service` trocando só o import path. O `pkg/env` foi sincronizado com a versão do `os-service` que já tem `GetBoolOrDefault`, `GetDurationOrDefault` e `GetListOrDefault`. O lint e a formatação ignoram `pkg/` para manter a cópia idêntica à original.
+- **Chassis**: o `pkg/` é copiado do `os-service` trocando só o import path, e passa pelo mesmo lint e gofmt do resto do código.
 - **Limitações**: sem credenciais reais, o adapter do Mercado Pago é validado contra `httptest`, não contra o sandbox. O `MP_WEBHOOK_MAX_AGE` vem desligado por padrão para evitar recusas por diferença de relógio. O orçamento não expira sozinho: o prazo de aprovação é controlado pelo orquestrador, que envia `CancelBudget`.
