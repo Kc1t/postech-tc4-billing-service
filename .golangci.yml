@@ -16,8 +16,6 @@ linters:
         - G104 # coberto pelo errcheck
   exclusions:
     paths:
-      # pkg/ é o chassis copiado literalmente do os-service: ajustes são feitos lá e copiados.
-      - pkg/
       - docs/
       - internal/ports/mocks/
     rules:
@@ -29,6 +27,5 @@ formatters:
     - goimports
   exclusions:
     paths:
-      - pkg/
       - docs/
       - internal/ports/mocks/
