@@ -4,6 +4,8 @@ APP_NAME=billing-service
 MAIN=./cmd/api
 COVER_PKGS=$$(go list ./... | grep -v -E '/cmd/|/docs|/mocks|/test/')
 COVER_MIN=80
+# Pacotes que não precisam de banco (sem Docker).
+UNIT_PKGS=$$(go list ./... | grep -v -E '/outbound/postgresql$$|/pkg/outbox|/pkg/inbox')
 
 # Postgres e LocalStack descartáveis dos testes (make test-infra).
 TEST_DB_PORT?=55433
@@ -53,7 +55,7 @@ test:
 	$(TEST_ENV) go test -p 1 -count=1 ./...
 
 test-unit:
-	go test -short -count=1 ./...
+	go test -count=1 $(UNIT_PKGS)
 
 test-component:
 	$(COMPONENT_ENV) go test -tags component -count=1 -v ./test/component/...
