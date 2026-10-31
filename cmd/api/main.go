@@ -44,7 +44,7 @@ func main() {
 	if err != nil {
 		log.Error("listen_failed", "error", err)
 		app.Close()
-		os.Exit(1) //nolint:gocritic // Close já foi chamado explicitamente
+		os.Exit(1)
 	}
 	if err := app.Serve(ctx, ln); err != nil {
 		log.Error("server_failed", "error", err)
