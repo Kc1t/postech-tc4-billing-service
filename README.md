@@ -2,7 +2,7 @@
 
 Microsserviço da Fase 4 do Tech Challenge FIAP SOAT (oficina mecânica). Cuida do **orçamento** da ordem de serviço e do **pagamento** pelo Mercado Pago (Checkout Pro). Participa da **saga orquestrada** pelo `os-service`: recebe comandos pela fila `billing-commands` e responde com eventos no tópico `billing-events`.
 
-- Go 1.25, Gin, GORM + PostgreSQL próprio, SNS/SQS (LocalStack em desenvolvimento), New Relic e logs JSON (`log/slog`).
+- Go 1.26, Gin, GORM + PostgreSQL próprio, SNS/SQS (LocalStack em desenvolvimento), New Relic e logs JSON (`log/slog`).
 - Arquitetura hexagonal, no mesmo desenho do `os-service`, e chassis de mensageria/outbox/inbox/observabilidade copiado de lá (`pkg/`).
 - Cobertura de testes de **96,5%** (sem contar `cmd/`, `docs/`, `mocks/` e `test/`), com repositórios testados contra Postgres real e um teste de componente com Postgres + LocalStack.
 
