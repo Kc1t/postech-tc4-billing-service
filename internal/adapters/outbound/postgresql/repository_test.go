@@ -269,6 +269,9 @@ func TestPing(t *testing.T) {
 	if err := Ping(context.Background(), testDB); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := Open("postgres://%zz", PoolConfig{}); err == nil {
+		t.Error("DSN inválida deveria falhar")
+	}
 	if _, err := Open("host=localhost port=1 user=x dbname=x sslmode=disable connect_timeout=1", PoolConfig{}); err == nil {
 		t.Fatal("esperava erro ao conectar numa porta fechada")
 	}
