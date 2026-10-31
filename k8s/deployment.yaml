@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-service
+  labels:
+    app: billing-service
+    app.kubernetes.io/part-of: oficina
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  # Rolling update sem indisponibilidade: sobe um pod novo, espera ficar ready e só então
+  # derruba um antigo. Réplicas concorrentes são seguras: o consumidor é idempotente (inbox),
+  # o relay do outbox usa FOR UPDATE SKIP LOCKED e as migrations rodam sob advisory lock.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: billing-service
+  template:
+    metadata:
+      labels:
+        app: billing-service
+        app.kubernetes.io/part-of: oficina
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: billing-service
+          image: IMAGE_PLACEHOLDER
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: billing-service-config
+            - secretRef:
+                name: billing-service-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          # Subida: migrations + conexão com banco; liveness só começa depois dela.
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 3
+            failureThreshold: 20
+          # Readiness: banco e SQS acessíveis. Falhou → sai do Service, mas não reinicia.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Liveness: só o processo. Dependência fora não deve reiniciar o pod.
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          lifecycle:
+            # Dá tempo do pod sair dos endpoints do Service antes do SIGTERM.
+            preStop:
+              exec:
+                command: ["sleep", "5"]

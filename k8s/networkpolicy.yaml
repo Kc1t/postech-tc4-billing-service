@@ -1,0 +1,30 @@
+# Entrada: só a porta HTTP do pod (os-service do namespace na API composition e o NLB do API
+# Gateway, por onde chegam cliente e webhook do Mercado Pago). Saída: DNS, Postgres (RDS) e HTTPS
+# (SQS/SNS, Mercado Pago e New Relic) — o resto é negado.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: billing-service
+spec:
+  podSelector:
+    matchLabels:
+      app: billing-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - port: 8082
+          protocol: TCP
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - ports:
+        - port: 5432
+          protocol: TCP
+    - ports:
+        - port: 443
+          protocol: TCP

@@ -1,0 +1,33 @@
+# Interno: usado pela API composition do os-service (BILLING_SERVICE_URL=http://billing-service).
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-service
+  labels:
+    app: billing-service
+spec:
+  type: ClusterIP
+  selector:
+    app: billing-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# Externo: NLB que o API Gateway usa para /billing/* (cliente aprova/recusa e webhook do Mercado Pago).
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-service-public
+  labels:
+    app: billing-service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: LoadBalancer
+  selector:
+    app: billing-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
