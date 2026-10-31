@@ -14,7 +14,7 @@ spec:
       port: 80
       targetPort: http
 ---
-# Externo: NLB que o API Gateway usa para /billing/* (cliente aprova/recusa e webhook do Mercado Pago).
+# Externo: NLB que o API Gateway usa para /api/v1/budgets, /payments, /webhooks/mercadopago e /fake-checkout.
 apiVersion: v1
 kind: Service
 metadata:

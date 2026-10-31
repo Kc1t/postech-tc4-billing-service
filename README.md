@@ -337,7 +337,7 @@ Os manifestos ficam em `k8s/` e não declaram namespace. Os `*_PLACEHOLDER` são
 | Arquivo | Conteúdo |
 |---|---|
 | `deployment.yaml` | 2 réplicas, `RollingUpdate` com `maxSurge=1`/`maxUnavailable=0`, probes separadas (`startupProbe` e `livenessProbe` em `/health/live`, `readinessProbe` em `/health/ready`), requests/limits, `runAsNonRoot` (UID 10001), `readOnlyRootFilesystem`, sem capabilities e `preStop` de 5s |
-| `service.yaml` | `ClusterIP` `billing-service` (API composition do `os-service`) e NLB `billing-service-public` (API Gateway `/billing/*`) |
+| `service.yaml` | `ClusterIP` `billing-service` (API composition do `os-service`) e NLB `billing-service-public` (rotas `/api/v1/budgets`, `/payments`, `/webhooks/mercadopago` e `/fake-checkout` do API Gateway) |
 | `configmap.yaml` / `secret.yaml` | configuração não sensível e modelo do Secret (`JWT_SECRET`, `POSTGRES_DSN`, `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `NEW_RELIC_LICENSE_KEY`) |
 | `hpa.yaml` / `pdb.yaml` | HPA de 2 a 6 réplicas (CPU 70%, memória 80%) e PDB `minAvailable: 1` |
 | `networkpolicy.yaml` | entrada só na porta 8082; saída só para DNS, Postgres (5432) e HTTPS (443) |

@@ -23,11 +23,11 @@ data:
   # Gateway de pagamento: mercadopago (credenciais de teste no Secret) ou fake (demonstração).
   PAYMENT_GATEWAY: "PAYMENT_GATEWAY_PLACEHOLDER"
   MP_BASE_URL: "https://api.mercadopago.com"
-  # Rota pública do webhook no API Gateway (POST /billing/webhooks/mercadopago).
-  MP_NOTIFICATION_URL: "API_GATEWAY_URL_PLACEHOLDER/billing/api/v1/webhooks/mercadopago"
+  # Rota pública do webhook no API Gateway (POST /api/v1/webhooks/mercadopago, sem authorizer).
+  MP_NOTIFICATION_URL: "API_GATEWAY_URL_PLACEHOLDER/api/v1/webhooks/mercadopago"
   MP_TIMEOUT: "5s"
   MP_PREFERENCE_TTL: "24h"
   MP_WEBHOOK_MAX_AGE: "0s"
-  FAKE_CHECKOUT_BASE_URL: "API_GATEWAY_URL_PLACEHOLDER/billing"
+  FAKE_CHECKOUT_BASE_URL: "API_GATEWAY_URL_PLACEHOLDER"
   READINESS_TIMEOUT: "2s"
   SHUTDOWN_TIMEOUT: "20s"
