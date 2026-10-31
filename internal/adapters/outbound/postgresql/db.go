@@ -13,7 +13,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/newrelic/go-agent/v3/integrations/nrpgx5"
 	gormpostgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
@@ -29,8 +32,16 @@ type PoolConfig struct {
 // Open conecta ao Postgres. O log do GORM fica em Warn, sem cor e com consultas parametrizadas:
 // consultas lentas e erros aparecem, mas sem os valores (CPF, e-mail) — e "record not found",
 // que é fluxo normal (404, idempotência), não vira ruído.
+//
+// A conexão é pelo pgx com o tracer do New Relic: cada consulta feita com um contexto que carrega
+// transação vira um segmento de datastore, e o banco aparece no trace e no service map.
 func Open(dsn string, pool PoolConfig) (*gorm.DB, error) {
-	db, err := gorm.Open(gormpostgres.Open(dsn), &gorm.Config{
+	cfg, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("postgresql: dsn inválida: %w", err)
+	}
+	cfg.Tracer = nrpgx5.NewTracer()
+	db, err := gorm.Open(gormpostgres.New(gormpostgres.Config{Conn: stdlib.OpenDB(*cfg)}), &gorm.Config{
 		Logger: gormlogger.New(log.New(os.Stderr, "", log.LstdFlags), gormlogger.Config{
 			SlowThreshold:             500 * time.Millisecond,
 			LogLevel:                  gormlogger.Warn,
