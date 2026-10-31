@@ -1,0 +1,12 @@
+.git
+.github
+.env
+*.env
+coverage*.out
+coverage.html
+/billing-service
+/bin/
+k8s/
+test/
+postman_collection.json
+*.md
