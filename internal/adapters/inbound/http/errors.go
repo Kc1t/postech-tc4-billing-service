@@ -78,7 +78,7 @@ func WriteError(c *gin.Context, err error) {
 	Abort(c, http.StatusInternalServerError, CodeInternal, "erro interno; tente novamente")
 }
 
-// BadRequest responde 400 para corpo ou parâmetro inválido.
+// BadRequest responde 400 para corpo ou parâmetro inválido, com a mensagem de BindingMessage.
 func BadRequest(c *gin.Context, err error) {
-	Abort(c, http.StatusBadRequest, CodeInvalidRequest, err.Error())
+	Abort(c, http.StatusBadRequest, CodeInvalidRequest, BindingMessage(err))
 }
