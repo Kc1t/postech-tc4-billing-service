@@ -163,7 +163,13 @@ Toda resposta de erro tem o formato `{"error": {"code": "BUDGET_NOT_FOUND", "mes
 ### Swagger e Postman
 
 - **Swagger**: [`docs/swagger.yaml`](docs/swagger.yaml) e [`docs/swagger.json`](docs/swagger.json), gerados das anotações dos handlers com `make swagger`. O serviço publica a UI em `/swagger/index.html` (`http://localhost:8082/swagger/index.html` no compose). O job `quality` do CI falha se o Swagger estiver desatualizado em relação ao código.
-- **Postman**: [`postman_collection.json`](postman_collection.json), com pastas Health, Orçamentos, Pagamentos e Webhook Mercado Pago, incluindo os casos 401 e 403. Variáveis: `baseUrl` (padrão `http://localhost:8082`), `adminToken`, `clientToken`, `osId`, `budgetId` e `paymentId` (já apontam para o `scripts/seed.sql`), `mpPaymentId` e `webhookSecret`. Para usar: `make up && make seed`, gere os tokens com `go run ./cmd/gentoken` (exemplos em [Como rodar localmente](#como-rodar-localmente)) e cole em `adminToken` e `clientToken`. A requisição do webhook calcula a `x-signature` no pre-request a partir de `webhookSecret`.
+- **Postman**: [`postman_collection.json`](postman_collection.json) tem teste em toda requisição (74 requisições, 178 asserções) e não depende de seed nem de token gerado à mão. A pasta 0 faz login no os-service, cria cliente, veículo e catálogo, pega o JWT do cliente na Lambda auth-issuer pelo gateway local e diagnostica as OS no execution-service. Depois vêm:
+  - orçamento: leitura pelo dono e pelo admin, outro cliente → 403, admin aprovando → 403, aprovar duas vezes → 409, id que não é UUID → 400 `INVALID_REQUEST`;
+  - pagamento simulado no gateway fake e checkout fake;
+  - webhook: notificação ignorada, sem assinatura → 401, assinatura inválida → 401 (HMAC calculado no pre-request);
+  - compensações: orçamento cancelado, estorno, recusa sem cobrança, falha na criação do orçamento → 404.
+
+  Variáveis em snake_case, com os mesmos nomes das outras collections (`base_url`, `os_url`, `exec_url`, `gateway_url`, `token`, `client_token`, `os_id`, `budget_id`, `payment_id`). Para rodar sozinha, suba a stack de [`postech-tc4-infra-k8s/local`](https://github.com/Kc1t/postech-tc4-infra-k8s/tree/main/local) (`make up && make lambdas && make gateway`) e use o Collection Runner; para rodar encadeada com as outras duas, `make postman` no mesmo diretório. O `scripts/seed.sql` e o `cmd/gentoken` continuam servindo para testar com curl sem os outros serviços.
 
 ### Mensagens consumidas (fila `billing-commands`)
 
