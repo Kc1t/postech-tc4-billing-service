@@ -1,614 +1,272 @@
 {
   "info": {
-    "name": "Billing Service — Oficina Mecânica (Fase 4)",
-    "description": "Orçamento e pagamento da OS. Gere os tokens com `go run ./cmd/gentoken -role admin` e `go run ./cmd/gentoken -role client -document 52998224725` (mesmo JWT_SECRET do serviço) e cole nas variáveis adminToken/clientToken. Os ids padrão apontam para o seed (`make seed`). Os comandos da saga chegam pela fila SQS billing-commands — não pela API.",
+    "name": "postech-tc4 · billing-service",
+    "description": "Orçamento e pagamento da OS (Fase 4): o billing-service recebe CreateBudget, RequestPayment, CancelBudget e RefundPayment da saga e responde por eventos; o cliente aprova ou recusa pela API com o JWT do CPF.\n\n**Rodar sozinha no Postman**: com a stack local no ar (`postech-tc4-infra-k8s/local`: `make up && make lambdas && make gateway`), rode a collection inteira no Runner. A pasta 0 cria no os-service e no execution-service tudo o que o billing precisa (cliente, catálogo, OS diagnosticadas); nada vem de seed nem de token colado à mão. Pode rodar várias vezes seguidas (dados novos a cada execução).\n\n**Encadeada**: `make postman` em `postech-tc4-infra-k8s/local` roda as pastas 1 a 4 depois do diagnóstico e a 5 depois do reparo, com as variáveis vindas das outras collections; a pasta 0 fica de fora.\n\nEtapas assíncronas são esperadas com polling na própria requisição (`poll_max` × `poll_interval_ms`). Variáveis em snake_case, os mesmos nomes das collections do os-service e do execution-service.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
   },
   "variable": [
     {
-      "key": "baseUrl",
+      "key": "base_url",
       "value": "http://localhost:8082"
     },
     {
-      "key": "adminToken",
+      "key": "os_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "exec_url",
+      "value": "http://localhost:8083"
+    },
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8090"
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@workshop.com"
+    },
+    {
+      "key": "admin_password",
+      "value": "admin123"
+    },
+    {
+      "key": "poll_max",
+      "value": "60"
+    },
+    {
+      "key": "poll_interval_ms",
+      "value": "500"
+    },
+    {
+      "key": "run_id",
       "value": ""
     },
     {
-      "key": "clientToken",
+      "key": "token",
       "value": ""
     },
     {
-      "key": "osId",
-      "value": "seed-os-0001"
+      "key": "refresh_token",
+      "value": ""
     },
     {
-      "key": "budgetId",
-      "value": "6f1c2a7e-0001-4a51-9a3e-000000000001"
+      "key": "client_token",
+      "value": ""
     },
     {
-      "key": "paymentId",
-      "value": "7a2d3b8f-0002-4b62-8b4f-000000000002"
+      "key": "other_client_token",
+      "value": ""
     },
     {
-      "key": "mpPaymentId",
-      "value": "123456789"
+      "key": "cpf",
+      "value": ""
     },
     {
-      "key": "webhookSecret",
-      "value": "MP_WEBHOOK_SECRET"
+      "key": "other_cpf",
+      "value": ""
+    },
+    {
+      "key": "unregistered_cpf",
+      "value": ""
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "other_email",
+      "value": ""
+    },
+    {
+      "key": "plate",
+      "value": ""
+    },
+    {
+      "key": "other_plate",
+      "value": ""
+    },
+    {
+      "key": "unregistered_plate",
+      "value": ""
+    },
+    {
+      "key": "service_code",
+      "value": ""
+    },
+    {
+      "key": "part_code",
+      "value": ""
+    },
+    {
+      "key": "staff_email",
+      "value": ""
+    },
+    {
+      "key": "requester_id",
+      "value": ""
+    },
+    {
+      "key": "other_requester_id",
+      "value": ""
+    },
+    {
+      "key": "vehicle_id",
+      "value": ""
+    },
+    {
+      "key": "service_id",
+      "value": ""
+    },
+    {
+      "key": "part_id",
+      "value": ""
+    },
+    {
+      "key": "os_id",
+      "value": ""
+    },
+    {
+      "key": "os_code",
+      "value": ""
+    },
+    {
+      "key": "os_pay_fail_id",
+      "value": ""
+    },
+    {
+      "key": "os_repair_fail_id",
+      "value": ""
+    },
+    {
+      "key": "os_reject_id",
+      "value": ""
+    },
+    {
+      "key": "os_budget_fail_id",
+      "value": ""
+    },
+    {
+      "key": "budget_id",
+      "value": ""
+    },
+    {
+      "key": "budget_pay_fail_id",
+      "value": ""
+    },
+    {
+      "key": "budget_repair_fail_id",
+      "value": ""
+    },
+    {
+      "key": "budget_reject_id",
+      "value": ""
+    },
+    {
+      "key": "payment_id",
+      "value": ""
+    },
+    {
+      "key": "payment_pay_fail_id",
+      "value": ""
+    },
+    {
+      "key": "payment_repair_fail_id",
+      "value": ""
+    },
+    {
+      "key": "webhook_signature",
+      "value": ""
+    },
+    {
+      "key": "webhook_request_id",
+      "value": ""
+    },
+    {
+      "key": "poll_n",
+      "value": ""
     }
   ],
   "item": [
     {
-      "name": "Health",
+      "name": "0. Preparação (só rodando sozinha)",
+      "description": "Cria no os-service o cliente, o outro cliente, o veículo e o catálogo, pega os JWTs de cliente no gateway, abre as 5 OS da saga e faz o diagnóstico no execution-service, até cada OS ter orçamento. No make postman esta pasta fica de fora: as OS chegam das collections do os-service e do execution-service.",
       "item": [
         {
-          "name": "Liveness",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/health/live",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "health",
-                "live"
-              ]
-            },
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Readiness (banco e SQS)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/health/ready",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "health",
-                "ready"
-              ]
-            },
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Orçamentos",
-      "item": [
-        {
-          "name": "Orçamento da OS (admin)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/budgets/os/{{osId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "budgets",
-                "os",
-                "{{osId}}"
-              ]
-            },
-            "description": "Usado pela API composition do os-service. Admin vê todos; cliente só os do próprio CPF.",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                  "const b = pm.response.json();",
-                  "pm.collectionVariables.set(\"budgetId\", b.id);",
-                  "if (b.payment) { pm.collectionVariables.set(\"paymentId\", b.payment.id); }"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Orçamento por id (cliente dono)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/budgets/{{budgetId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "budgets",
-                "{{budgetId}}"
-              ]
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{clientToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                  "const b = pm.response.json();",
-                  "pm.collectionVariables.set(\"budgetId\", b.id);",
-                  "if (b.payment) { pm.collectionVariables.set(\"paymentId\", b.payment.id); }"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Aprovar orçamento (cliente dono)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/budgets/{{budgetId}}/approve",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "budgets",
-                "{{budgetId}}",
-                "approve"
-              ]
-            },
-            "description": "Só pending_approval → approved (publica BudgetApproved). Repetir devolve 409 INVALID_TRANSITION.",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{clientToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"aprovado\", () => pm.expect(pm.response.json().status).to.eql(\"approved\"));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Recusar orçamento (cliente dono)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/budgets/{{budgetId}}/reject",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "budgets",
-                "{{budgetId}}",
-                "reject"
-              ]
-            },
-            "description": "reason obrigatório (400 sem ele). Publica BudgetRejected.",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{clientToken}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reason\": \"Valor acima do esperado\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Aprovar como admin (403)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/budgets/{{budgetId}}/approve",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "budgets",
-                "{{budgetId}}",
-                "approve"
-              ]
-            },
-            "description": "Só o cliente dono decide o orçamento.",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Sem token (401)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/budgets/{{budgetId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "budgets",
-                "{{budgetId}}"
-              ]
-            },
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Pagamentos",
-      "item": [
-        {
-          "name": "Consultar pagamento",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "payments",
-                "{{paymentId}}"
-              ]
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{clientToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"tem checkout_url\", () => pm.expect(pm.response.json().checkout_url).to.be.a(\"string\"));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Simular aprovação (gateway fake, admin)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}/simulate",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "payments",
-                "{{paymentId}}",
-                "simulate"
-              ]
-            },
-            "description": "Só com PAYMENT_GATEWAY=fake (senão 403 SIMULATION_DISABLED). Passa pelas mesmas regras do webhook real e publica PaymentApproved.",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminToken}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"approved\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Simular recusa (gateway fake, admin)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}/simulate",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "payments",
-                "{{paymentId}}",
-                "simulate"
-              ]
-            },
-            "description": "Publica PaymentFailed.",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminToken}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"rejected\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Checkout fake (navegador)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/fake-checkout/{{paymentId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "fake-checkout",
-                "{{paymentId}}"
-              ]
-            },
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Webhook Mercado Pago",
-      "item": [
-        {
-          "name": "Notificação assinada",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-request-id",
-                "value": "{{xRequestId}}"
-              },
-              {
-                "key": "x-signature",
-                "value": "{{xSignature}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/mercadopago?data.id={{mpPaymentId}}&type=payment",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "webhooks",
-                "mercadopago"
-              ],
-              "query": [
-                {
-                  "key": "data.id",
-                  "value": "{{mpPaymentId}}"
-                },
-                {
-                  "key": "type",
-                  "value": "payment"
-                }
-              ]
-            },
-            "description": "Com o segredo certo (variável webhookSecret = MP_WEBHOOK_SECRET) devolve 200; o serviço relê GET /v1/payments/{id} no Mercado Pago antes de mudar o estado. Assinatura inválida → 401.",
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"action\": \"payment.updated\",\n  \"api_version\": \"v1\",\n  \"type\": \"payment\",\n  \"data\": {\n    \"id\": \"{{mpPaymentId}}\"\n  },\n  \"live_mode\": false\n}"
-            }
-          },
+          "name": "Gerar dados da execução e conferir o os-service",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Assina como o Mercado Pago: HMAC-SHA256 do manifest id:{data.id};request-id:{x-request-id};ts:{ts};",
-                  "const dataId = pm.collectionVariables.get('mpPaymentId').toLowerCase();",
-                  "const requestId = pm.variables.replaceIn('{{$guid}}');",
-                  "const ts = Date.now().toString();",
-                  "const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;",
-                  "const v1 = CryptoJS.HmacSHA256(manifest, pm.collectionVariables.get('webhookSecret')).toString(CryptoJS.enc.Hex);",
-                  "pm.variables.set('xRequestId', requestId);",
-                  "pm.variables.set('xSignature', `ts=${ts},v1=${v1}`);"
+                  "// Dados únicos desta execução: CPFs com dígito verificador válido, placas Mercosul e códigos.",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const dv = (d) => { let s = 0; d.forEach((x, i) => { s += x * (d.length + 1 - i); }); const r = (s * 10) % 11; return r === 10 ? 0 : r; };",
+                  "const cpf = () => { let d; do { d = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)); } while (new Set(d).size === 1); d.push(dv(d)); d.push(dv(d)); return d.join(''); };",
+                  "const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
+                  "const ch = () => L[Math.floor(Math.random() * 26)];",
+                  "const dg = () => Math.floor(Math.random() * 10);",
+                  "const plate = () => ch() + ch() + ch() + dg() + ch() + dg() + dg();",
+                  "const run = Date.now().toString(36);",
+                  "set('run_id', run);",
+                  "set('cpf', cpf()); set('other_cpf', cpf()); set('unregistered_cpf', cpf());",
+                  "set('email', `ana.${run}@example.com`); set('other_email', `bruno.${run}@example.com`);",
+                  "set('plate', plate()); set('other_plate', plate()); set('unregistered_plate', plate());",
+                  "set('service_code', String(Date.now() % 1000000000));",
+                  "set('part_code', `PAS-${run}`.toUpperCase());",
+                  "set('staff_email', `mecanico.${run}@workshop.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
-          ]
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{os_url}}/health",
+            "description": "Gera CPF, placa e códigos únicos (pre-request) e confere que o os-service responde.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
         },
         {
-          "name": "Notificação sem assinatura (401)",
+          "name": "Login da equipe (os-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"access_token e refresh_token\", () => { pm.expect(b.access_token).to.be.a('string').and.not.empty; pm.expect(b.refresh_token).to.be.a('string').and.not.empty; });",
+                  "pm.test(\"token_type Bearer e expires_in > 0\", () => { pm.expect(b.token_type).to.eql('Bearer'); pm.expect(b.expires_in).to.be.above(0); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('token', b.access_token);",
+                  "set('refresh_token', b.refresh_token);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -617,47 +275,2620 @@
                 "value": "application/json"
               }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/mercadopago?data.id={{mpPaymentId}}&type=payment",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "webhooks",
-                "mercadopago"
-              ],
-              "query": [
-                {
-                  "key": "data.id",
-                  "value": "{{mpPaymentId}}"
-                },
-                {
-                  "key": "type",
-                  "value": "payment"
-                }
-              ]
-            },
+            "url": "{{os_url}}/api/v1/auth/login",
+            "description": "Login da equipe no os-service. Grava o access token em {{token}} (usado como bearer padrão) e o refresh em {{refresh_token}}.",
             "auth": {
               "type": "noauth"
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"payment\",\n  \"data\": {\n    \"id\": \"{{mpPaymentId}}\"\n  }\n}"
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
-          },
+          }
+        },
+        {
+          "name": "Criar cliente (os-service)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));"
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"documento e e-mail gravados\", () => { pm.expect(b.document).to.eql(pm.variables.get('cpf')); pm.expect(b.email).to.eql(pm.variables.get('email')); });",
+                  "pm.test(\"id gerado\", () => { pm.expect(b.id).to.be.a('string').and.not.empty; });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('requester_id', b.id);"
                 ]
               }
             }
-          ]
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{os_url}}/api/v1/requesters",
+            "description": "Cliente dono das OS desta execução.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ana Postman\",\n  \"document\": \"{{cpf}}\",\n  \"email\": \"{{email}}\",\n  \"phone\": \"11988887777\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Criar outro cliente (os-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"documento e e-mail gravados\", () => { pm.expect(b.document).to.eql(pm.variables.get('other_cpf')); pm.expect(b.email).to.eql(pm.variables.get('other_email')); });",
+                  "pm.test(\"id gerado\", () => { pm.expect(b.id).to.be.a('string').and.not.empty; });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('other_requester_id', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{os_url}}/api/v1/requesters",
+            "description": "Usado nos testes de posse (403).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bruno Postman\",\n  \"document\": \"{{other_cpf}}\",\n  \"email\": \"{{other_email}}\",\n  \"phone\": \"11988887777\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Criar veículo (os-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"placa e dono\", () => { pm.expect(b.plate).to.eql(pm.variables.get('plate')); pm.expect(b.requester_id).to.eql(pm.variables.get('requester_id')); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('vehicle_id', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{os_url}}/api/v1/vehicles",
+            "description": "Veículo do cliente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requester_document\": \"{{cpf}}\",\n  \"plate\": \"{{plate}}\",\n  \"brand\": \"Fiat\",\n  \"model\": \"Argo\",\n  \"year\": 2022\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Criar serviço (os-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"code e preço\", () => { pm.expect(b.code).to.eql(Number(pm.variables.get('service_code'))); pm.expect(b.price).to.eql(160); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('service_id', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{os_url}}/api/v1/services",
+            "description": "Serviço do catálogo usado no diagnóstico (code único por execução).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": {{service_code}},\n  \"name\": \"Troca de pastilhas\",\n  \"description\": \"Par dianteiro\",\n  \"price\": 160,\n  \"duration_min\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Criar peça (os-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"estoque inicial 10\", () => { pm.expect(b.stock).to.eql(10); });",
+                  "pm.test(\"código do fabricante\", () => { pm.expect(b.manufacturer_code).to.eql(pm.variables.get('part_code')); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('part_id', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{os_url}}/api/v1/parts",
+            "description": "Peça com 10 unidades em estoque (manufacturer_code único por execução).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manufacturer_code\": \"{{part_code}}\",\n  \"name\": \"Pastilha de freio\",\n  \"description\": \"Par\",\n  \"unit\": \"par\",\n  \"price\": 95,\n  \"stock\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Token do cliente (gateway → Lambda auth-issuer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const raw = b.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');",
+                  "const claims = JSON.parse(atob(raw + '==='.slice((raw.length + 3) % 4)));",
+                  "pm.test(\"JWT de cliente com o CPF\", () => { pm.expect(claims.role).to.eql('client'); pm.expect(claims.document).to.eql(pm.variables.get('cpf')); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('client_token', b.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gateway_url}}/auth",
+            "description": "POST /auth do gateway local troca o CPF por um JWT de cliente.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{cpf}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Token do outro cliente (gateway)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const raw = b.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');",
+                  "const claims = JSON.parse(atob(raw + '==='.slice((raw.length + 3) % 4)));",
+                  "pm.test(\"JWT de cliente com o CPF\", () => { pm.expect(claims.role).to.eql('client'); pm.expect(claims.document).to.eql(pm.variables.get('other_cpf')); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('other_client_token', b.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gateway_url}}/auth",
+            "description": "JWT de um cliente que não é dono das OS.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{other_cpf}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Abrir OS (caminho feliz)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"OS recebida com código\", () => { pm.expect(b.status).to.eql('received'); pm.expect(b.code).to.be.a('number').and.above(0); });",
+                  "pm.test(\"cliente e veículo da OS\", () => { pm.expect(b.requester_id).to.eql(pm.variables.get('requester_id')); pm.expect(b.vehicle_id).to.eql(pm.variables.get('vehicle_id')); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('os_id', b.id);",
+                  "set('os_code', String(b.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{os_url}}/api/v1/service-orders",
+            "description": "Abre a OS do caminho feliz: grava a OS, a saga e o comando StartDiagnosis numa transação.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requester_document\": \"{{cpf}}\",\n  \"vehicle_plate\": \"{{plate}}\",\n  \"notes\": \"barulho no freio dianteiro\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Abrir OS (pagamento recusado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"OS recebida com código\", () => { pm.expect(b.status).to.eql('received'); pm.expect(b.code).to.be.a('number').and.above(0); });",
+                  "pm.test(\"cliente e veículo da OS\", () => { pm.expect(b.requester_id).to.eql(pm.variables.get('requester_id')); pm.expect(b.vehicle_id).to.eql(pm.variables.get('vehicle_id')); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('os_pay_fail_id', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{os_url}}/api/v1/service-orders",
+            "description": "OS que terá o pagamento recusado no billing (compensação: orçamento cancelado, peças devolvidas).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requester_document\": \"{{cpf}}\",\n  \"vehicle_plate\": \"{{plate}}\",\n  \"notes\": \"barulho no freio dianteiro\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Abrir OS (reparo recusado, X-Simulate-Failure: repair)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"OS recebida com código\", () => { pm.expect(b.status).to.eql('received'); pm.expect(b.code).to.be.a('number').and.above(0); });",
+                  "pm.test(\"cliente e veículo da OS\", () => { pm.expect(b.requester_id).to.eql(pm.variables.get('requester_id')); pm.expect(b.vehicle_id).to.eql(pm.variables.get('vehicle_id')); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('os_repair_fail_id', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Simulate-Failure",
+                "value": "repair"
+              }
+            ],
+            "url": "{{os_url}}/api/v1/service-orders",
+            "description": "X-Simulate-Failure: repair faz o execution-service recusar o reparo depois do pagamento (compensação: estorno).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requester_document\": \"{{cpf}}\",\n  \"vehicle_plate\": \"{{plate}}\",\n  \"notes\": \"barulho no freio dianteiro\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Abrir OS (cliente recusa)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"OS recebida com código\", () => { pm.expect(b.status).to.eql('received'); pm.expect(b.code).to.be.a('number').and.above(0); });",
+                  "pm.test(\"cliente e veículo da OS\", () => { pm.expect(b.requester_id).to.eql(pm.variables.get('requester_id')); pm.expect(b.vehicle_id).to.eql(pm.variables.get('vehicle_id')); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('os_reject_id', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{os_url}}/api/v1/service-orders",
+            "description": "OS cujo orçamento o cliente vai recusar (compensação: peças devolvidas, execução cancelada).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requester_document\": \"{{cpf}}\",\n  \"vehicle_plate\": \"{{plate}}\",\n  \"notes\": \"barulho no freio dianteiro\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Abrir OS (falha no orçamento, X-Simulate-Failure: budget)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"OS recebida com código\", () => { pm.expect(b.status).to.eql('received'); pm.expect(b.code).to.be.a('number').and.above(0); });",
+                  "pm.test(\"cliente e veículo da OS\", () => { pm.expect(b.requester_id).to.eql(pm.variables.get('requester_id')); pm.expect(b.vehicle_id).to.eql(pm.variables.get('vehicle_id')); });",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "set('os_budget_fail_id', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Simulate-Failure",
+                "value": "budget"
+              }
+            ],
+            "url": "{{os_url}}/api/v1/service-orders",
+            "description": "X-Simulate-Failure: budget faz o billing falhar ao criar o orçamento (compensação sem cobrança).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requester_document\": \"{{cpf}}\",\n  \"vehicle_plate\": \"{{plate}}\",\n  \"notes\": \"barulho no freio dianteiro\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aguardar diagnóstico na fila (caminho feliz)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'queued_diagnosis');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"execução em queued_diagnosis\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  pm.test('placa do veículo da OS', () => pm.expect(b.vehicle.plate).to.eql(v('plate')));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{exec_url}}/api/v1/executions/{{os_id}}",
+            "description": "Consulta a execução da OS até ela chegar em queued_diagnosis (o comando chega pela fila execution-commands). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Iniciar diagnóstico (caminho feliz)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"execução em in_diagnosis\", () => { pm.expect(b.status).to.eql('in_diagnosis'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{exec_url}}/api/v1/executions/{{os_id}}/diagnosis/start",
+            "description": "O mecânico começa o diagnóstico (queued_diagnosis → in_diagnosis)."
+          }
+        },
+        {
+          "name": "Concluir diagnóstico (caminho feliz)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"execução em diagnosed\", () => { pm.expect(b.status).to.eql('diagnosed'); });",
+                  "pm.test(\"diagnóstico com o serviço e as peças\", () => { pm.expect(b.diagnosis.services[0].code).to.eql(Number(pm.variables.get('service_code'))); pm.expect(b.diagnosis.parts[0].quantity).to.eql(2); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{exec_url}}/api/v1/executions/{{os_id}}/diagnosis/complete",
+            "description": "Serviço e 2 peças do catálogo. O os-service reserva as peças e pede o orçamento ao billing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"services\": [{ \"code\": {{service_code}} }],\n  \"parts\": [{ \"manufacturer_code\": \"{{part_code}}\", \"quantity\": 2 }],\n  \"notes\": \"pastilhas dianteiras no limite\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aguardar diagnóstico na fila (pagamento recusado)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'queued_diagnosis');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"execução em queued_diagnosis\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  pm.test('placa do veículo da OS', () => pm.expect(b.vehicle.plate).to.eql(v('plate')));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{exec_url}}/api/v1/executions/{{os_pay_fail_id}}",
+            "description": "Consulta a execução da OS até ela chegar em queued_diagnosis (o comando chega pela fila execution-commands). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Iniciar diagnóstico (pagamento recusado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"execução em in_diagnosis\", () => { pm.expect(b.status).to.eql('in_diagnosis'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{exec_url}}/api/v1/executions/{{os_pay_fail_id}}/diagnosis/start",
+            "description": "O mecânico começa o diagnóstico (queued_diagnosis → in_diagnosis)."
+          }
+        },
+        {
+          "name": "Concluir diagnóstico (pagamento recusado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"execução em diagnosed\", () => { pm.expect(b.status).to.eql('diagnosed'); });",
+                  "pm.test(\"diagnóstico com o serviço e as peças\", () => { pm.expect(b.diagnosis.services[0].code).to.eql(Number(pm.variables.get('service_code'))); pm.expect(b.diagnosis.parts[0].quantity).to.eql(2); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{exec_url}}/api/v1/executions/{{os_pay_fail_id}}/diagnosis/complete",
+            "description": "Serviço e 2 peças do catálogo. O os-service reserva as peças e pede o orçamento ao billing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"services\": [{ \"code\": {{service_code}} }],\n  \"parts\": [{ \"manufacturer_code\": \"{{part_code}}\", \"quantity\": 2 }],\n  \"notes\": \"pastilhas dianteiras no limite\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aguardar diagnóstico na fila (reparo recusado)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'queued_diagnosis');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"execução em queued_diagnosis\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  pm.test('placa do veículo da OS', () => pm.expect(b.vehicle.plate).to.eql(v('plate')));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{exec_url}}/api/v1/executions/{{os_repair_fail_id}}",
+            "description": "Consulta a execução da OS até ela chegar em queued_diagnosis (o comando chega pela fila execution-commands). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Iniciar diagnóstico (reparo recusado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"execução em in_diagnosis\", () => { pm.expect(b.status).to.eql('in_diagnosis'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{exec_url}}/api/v1/executions/{{os_repair_fail_id}}/diagnosis/start",
+            "description": "O mecânico começa o diagnóstico (queued_diagnosis → in_diagnosis)."
+          }
+        },
+        {
+          "name": "Concluir diagnóstico (reparo recusado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"execução em diagnosed\", () => { pm.expect(b.status).to.eql('diagnosed'); });",
+                  "pm.test(\"diagnóstico com o serviço e as peças\", () => { pm.expect(b.diagnosis.services[0].code).to.eql(Number(pm.variables.get('service_code'))); pm.expect(b.diagnosis.parts[0].quantity).to.eql(2); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{exec_url}}/api/v1/executions/{{os_repair_fail_id}}/diagnosis/complete",
+            "description": "Serviço e 2 peças do catálogo. O os-service reserva as peças e pede o orçamento ao billing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"services\": [{ \"code\": {{service_code}} }],\n  \"parts\": [{ \"manufacturer_code\": \"{{part_code}}\", \"quantity\": 2 }],\n  \"notes\": \"pastilhas dianteiras no limite\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aguardar diagnóstico na fila (cliente recusa)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'queued_diagnosis');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"execução em queued_diagnosis\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  pm.test('placa do veículo da OS', () => pm.expect(b.vehicle.plate).to.eql(v('plate')));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{exec_url}}/api/v1/executions/{{os_reject_id}}",
+            "description": "Consulta a execução da OS até ela chegar em queued_diagnosis (o comando chega pela fila execution-commands). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Iniciar diagnóstico (cliente recusa)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"execução em in_diagnosis\", () => { pm.expect(b.status).to.eql('in_diagnosis'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{exec_url}}/api/v1/executions/{{os_reject_id}}/diagnosis/start",
+            "description": "O mecânico começa o diagnóstico (queued_diagnosis → in_diagnosis)."
+          }
+        },
+        {
+          "name": "Concluir diagnóstico (cliente recusa)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"execução em diagnosed\", () => { pm.expect(b.status).to.eql('diagnosed'); });",
+                  "pm.test(\"diagnóstico com o serviço e as peças\", () => { pm.expect(b.diagnosis.services[0].code).to.eql(Number(pm.variables.get('service_code'))); pm.expect(b.diagnosis.parts[0].quantity).to.eql(2); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{exec_url}}/api/v1/executions/{{os_reject_id}}/diagnosis/complete",
+            "description": "Serviço e 2 peças do catálogo. O os-service reserva as peças e pede o orçamento ao billing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"services\": [{ \"code\": {{service_code}} }],\n  \"parts\": [{ \"manufacturer_code\": \"{{part_code}}\", \"quantity\": 2 }],\n  \"notes\": \"pastilhas dianteiras no limite\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aguardar diagnóstico na fila (falha no orçamento)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'queued_diagnosis');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"execução em queued_diagnosis\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  pm.test('placa do veículo da OS', () => pm.expect(b.vehicle.plate).to.eql(v('plate')));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{exec_url}}/api/v1/executions/{{os_budget_fail_id}}",
+            "description": "Consulta a execução da OS até ela chegar em queued_diagnosis (o comando chega pela fila execution-commands). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Iniciar diagnóstico (falha no orçamento)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"execução em in_diagnosis\", () => { pm.expect(b.status).to.eql('in_diagnosis'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{exec_url}}/api/v1/executions/{{os_budget_fail_id}}/diagnosis/start",
+            "description": "O mecânico começa o diagnóstico (queued_diagnosis → in_diagnosis)."
+          }
+        },
+        {
+          "name": "Concluir diagnóstico (falha no orçamento)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"execução em diagnosed\", () => { pm.expect(b.status).to.eql('diagnosed'); });",
+                  "pm.test(\"diagnóstico com o serviço e as peças\", () => { pm.expect(b.diagnosis.services[0].code).to.eql(Number(pm.variables.get('service_code'))); pm.expect(b.diagnosis.parts[0].quantity).to.eql(2); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{exec_url}}/api/v1/executions/{{os_budget_fail_id}}/diagnosis/complete",
+            "description": "Serviço e 2 peças do catálogo. O os-service reserva as peças e pede o orçamento ao billing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"services\": [{ \"code\": {{service_code}} }],\n  \"parts\": [{ \"manufacturer_code\": \"{{part_code}}\", \"quantity\": 2 }],\n  \"notes\": \"pastilhas dianteiras no limite\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Health",
+      "description": "Probes do billing-service.",
+      "item": [
+        {
+          "name": "Liveness",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"status ok\", () => { pm.expect(b.status).to.eql('ok'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/health/live",
+            "description": "O processo responde.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Readiness (Postgres e SQS)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"banco e SQS ok\", () => { pm.expect(b.status).to.eql('ok'); pm.expect(b.checks).to.eql({ database: 'ok', sqs: 'ok' }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/health/ready",
+            "description": "Verifica o banco e a fila de comandos.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Orçamento",
+      "description": "Orçamento criado pela saga depois do diagnóstico. Leitura: admin ou o cliente dono (CPF do JWT); aprovar e recusar: só o cliente dono.",
+      "item": [
+        {
+          "name": "Aguardar orçamento da OS (caminho feliz)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'pending_approval');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"orçamento aguardando aprovação\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  set('budget_id', b.id);",
+                  "  pm.test('total do orçamento = 350', () => pm.expect(b.total).to.eql(350));",
+                  "  pm.test('itens: serviço e peças', () => { pm.expect(b.items.map((i) => i.kind)).to.have.members(['service', 'part']); pm.expect(b.items.find((i) => i.kind === 'part').quantity).to.eql(2); });",
+                  "  pm.test('OS, código e cliente', () => { pm.expect(b.os_id).to.eql(v('os_id')); pm.expect(String(b.os_code)).to.eql(v('os_code')); pm.expect(b.requester.id).to.eql(v('requester_id')); });",
+                  "  pm.test('ainda sem cobrança', () => pm.expect(b.payment).to.eql(null));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/os/{{os_id}}",
+            "description": "GET /budgets/os/{os_id} com token de admin; grava {{budget_id}}. Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Orçamento por id (cliente dono)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"é o orçamento da OS\", () => { pm.expect(b.id).to.eql(pm.variables.get('budget_id')); pm.expect(b.status).to.eql('pending_approval'); });",
+                  "pm.test(\"sem o CPF na resposta (minimização)\", () => { pm.expect(b.requester).to.not.have.property('document'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}",
+            "description": "O cliente lê o próprio orçamento.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Orçamento por id (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"total 350\", () => { pm.expect(b.total).to.eql(350); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}",
+            "description": "A equipe também lê."
+          }
+        },
+        {
+          "name": "Outro cliente lendo o orçamento (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"error.code = FORBIDDEN\", () => pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}",
+            "description": "CPF do token não é o do orçamento.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{other_client_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sem token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"error.code = UNAUTHORIZED\", () => pm.expect(pm.response.json().error.code).to.eql(\"UNAUTHORIZED\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}",
+            "description": "Sem Authorization.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Orçamento inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"error.code = BUDGET_NOT_FOUND\", () => pm.expect(pm.response.json().error.code).to.eql(\"BUDGET_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{$randomUUID}}",
+            "description": "UUID válido sem orçamento."
+          }
+        },
+        {
+          "name": "Orçamento com UUID inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"error.code = INVALID_REQUEST\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_REQUEST\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/nao-e-uuid",
+            "description": "Id que não é UUID."
+          }
+        },
+        {
+          "name": "Orçamento de OS sem orçamento (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"error.code = BUDGET_NOT_FOUND\", () => pm.expect(pm.response.json().error.code).to.eql(\"BUDGET_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/os/{{$randomUUID}}",
+            "description": "OS sem orçamento."
+          }
+        },
+        {
+          "name": "Aprovar como admin (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"error.code = FORBIDDEN\", () => pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}/approve",
+            "description": "Só o cliente decide."
+          }
+        },
+        {
+          "name": "Outro cliente aprovando (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"error.code = FORBIDDEN\", () => pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}/approve",
+            "description": "Só o dono decide.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{other_client_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recusar sem motivo (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"error.code = INVALID_REQUEST\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_REQUEST\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}/reject",
+            "description": "reason é obrigatório.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aprovar orçamento (cliente dono)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"orçamento aprovado\", () => { pm.expect(b.status).to.eql('approved'); pm.expect(b.decided_at).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}/approve",
+            "description": "Com o JWT emitido pela Lambda; a saga pede o pagamento.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Aprovar de novo (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"error.code = INVALID_TRANSITION\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_TRANSITION\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}/approve",
+            "description": "Decisão já tomada.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recusar orçamento aprovado (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"error.code = INVALID_TRANSITION\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_TRANSITION\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}/reject",
+            "description": "Decisão já tomada.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"mudei de ideia\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aguardar orçamento (pagamento recusado)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'pending_approval');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"orçamento aguardando aprovação\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  set('budget_pay_fail_id', b.id);",
+                  "  pm.test('total do orçamento = 350', () => pm.expect(b.total).to.eql(350));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/os/{{os_pay_fail_id}}",
+            "description": "Orçamento criado pelo comando CreateBudget depois do diagnóstico (404 até ele chegar). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Aprovar orçamento (pagamento recusado, JWT do cliente)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"orçamento aprovado\", () => { pm.expect(b.status).to.eql('approved'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_pay_fail_id}}/approve",
+            "description": "O cliente dono aprova com o JWT emitido pela Lambda; a saga pede o pagamento.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Aguardar orçamento (reparo recusado)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'pending_approval');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"orçamento aguardando aprovação\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  set('budget_repair_fail_id', b.id);",
+                  "  pm.test('total do orçamento = 350', () => pm.expect(b.total).to.eql(350));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/os/{{os_repair_fail_id}}",
+            "description": "Orçamento criado pelo comando CreateBudget depois do diagnóstico (404 até ele chegar). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Aprovar orçamento (reparo recusado, JWT do cliente)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"orçamento aprovado\", () => { pm.expect(b.status).to.eql('approved'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_repair_fail_id}}/approve",
+            "description": "O cliente dono aprova com o JWT emitido pela Lambda; a saga pede o pagamento.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Aguardar orçamento (cliente recusa)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'pending_approval');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"orçamento aguardando aprovação\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  set('budget_reject_id', b.id);",
+                  "  pm.test('total do orçamento = 350', () => pm.expect(b.total).to.eql(350));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/os/{{os_reject_id}}",
+            "description": "Orçamento criado pelo comando CreateBudget depois do diagnóstico (404 até ele chegar). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Recusar orçamento (cliente recusa)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"orçamento recusado com o motivo\", () => { pm.expect(b.status).to.eql('rejected'); pm.expect(b.reason).to.eql('vou fazer em outro lugar'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_reject_id}}/reject",
+            "description": "O cliente recusa com motivo; a saga devolve as peças e cancela a execução.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"vou fazer em outro lugar\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Pagamento",
+      "description": "Cobrança criada depois da aprovação. Com PAYMENT_GATEWAY=fake o checkout é uma página local e o retorno do provedor é simulado por um admin.",
+      "item": [
+        {
+          "name": "Aguardar cobrança (caminho feliz)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (!!b.payment && b.payment.status === 'pending');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"cobrança pendente\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  set('payment_id', b.payment.id);",
+                  "  pm.test('gateway fake, valor do orçamento', () => { pm.expect(b.payment.provider).to.eql('fake'); pm.expect(b.payment.amount).to.eql(350); });",
+                  "  pm.test('checkout_url do pagamento', () => pm.expect(b.payment.checkout_url).to.include(b.payment.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/os/{{os_id}}",
+            "description": "Grava {{payment_id}}. Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Consultar pagamento (cliente dono)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"pagamento pendente do orçamento\", () => { pm.expect(b.status).to.eql('pending'); pm.expect(b.budget_id).to.eql(pm.variables.get('budget_id')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/{{payment_id}}",
+            "description": "O dono do orçamento lê a cobrança.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pagamento de outro cliente (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"error.code = FORBIDDEN\", () => pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/{{payment_id}}",
+            "description": "Posse verificada pelo orçamento.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{other_client_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pagamento inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"error.code = PAYMENT_NOT_FOUND\", () => pm.expect(pm.response.json().error.code).to.eql(\"PAYMENT_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/{{$randomUUID}}",
+            "description": "UUID válido sem pagamento."
+          }
+        },
+        {
+          "name": "Pagamento com UUID inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"error.code = INVALID_REQUEST\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_REQUEST\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/nao-e-uuid",
+            "description": "Id que não é UUID."
+          }
+        },
+        {
+          "name": "Checkout fake (página HTML)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"HTML com o id do pagamento\", () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('text/html'); pm.expect(pm.response.text()).to.include(pm.variables.get('payment_id')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/fake-checkout/{{payment_id}}",
+            "description": "Página para onde aponta o checkout_url no gateway fake.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Simular com status inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"error.code = INVALID_REQUEST\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_REQUEST\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/payments/{{payment_id}}/simulate",
+            "description": "Só approved ou rejected.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"talvez\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente simulando pagamento (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"error.code = FORBIDDEN\", () => pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/payments/{{payment_id}}/simulate",
+            "description": "Simulação é da equipe.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Simular pagamento aprovado (caminho feliz)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"pagamento approved\", () => { pm.expect(b.status).to.eql('approved'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/payments/{{payment_id}}/simulate",
+            "description": "Retorno simulado do provedor; a saga manda o reparo para a fila.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Simular de novo (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"error.code = INVALID_TRANSITION\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_TRANSITION\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/payments/{{payment_id}}/simulate",
+            "description": "Só pagamentos pending podem ser simulados.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aguardar cobrança (pagamento recusado)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (!!b.payment && b.payment.status === 'pending');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"cobrança pendente\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  set('payment_pay_fail_id', b.payment.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/os/{{os_pay_fail_id}}",
+            "description": "A cobrança aparece no orçamento depois do RequestPayment (gateway fake: status pending). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Simular pagamento recusado (pagamento recusado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"pagamento failed\", () => { pm.expect(b.status).to.eql('failed'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/payments/{{payment_pay_fail_id}}/simulate",
+            "description": "Retorno simulado do provedor (só com PAYMENT_GATEWAY=fake, token de admin): rejected.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Aguardar cobrança (reparo recusado)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (!!b.payment && b.payment.status === 'pending');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"cobrança pendente\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  set('payment_repair_fail_id', b.payment.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/os/{{os_repair_fail_id}}",
+            "description": "A cobrança aparece no orçamento depois do RequestPayment (gateway fake: status pending). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Simular pagamento aprovado (reparo recusado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"pagamento approved\", () => { pm.expect(b.status).to.eql('approved'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/payments/{{payment_repair_fail_id}}/simulate",
+            "description": "Retorno simulado do provedor (só com PAYMENT_GATEWAY=fake, token de admin): approved.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Webhook Mercado Pago",
+      "description": "Rota pública, autenticada pela assinatura x-signature (HMAC com MP_WEBHOOK_SECRET). Localmente, com o gateway fake e sem segredo, toda notificação de pagamento é recusada: aqui fica o contrato de segurança.",
+      "item": [
+        {
+          "name": "Notificação de outro tipo (ignorada)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"status ignored\", () => { pm.expect(b.status).to.eql('ignored'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/webhooks/mercadopago?type=merchant_order&data.id=123",
+            "description": "Só type=payment é processado; o resto é confirmado e ignorado.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"merchant_order.updated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Notificação sem assinatura (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"error.code = INVALID_SIGNATURE\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_SIGNATURE\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/webhooks/mercadopago?type=payment&data.id=123456789",
+            "description": "Sem x-signature.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"payment.updated\",\n  \"data\": {\n    \"id\": \"123456789\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Assinatura inválida (401)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Assinatura no formato do Mercado Pago (ts e v1 = HMAC-SHA256 do manifest), feita com um segredo que não é o do serviço.",
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const ts = String(Date.now());",
+                  "const rid = `pm-${ts}`;",
+                  "const manifest = `id:123456789;request-id:${rid};ts:${ts};`;",
+                  "set('webhook_request_id', rid);",
+                  "set('webhook_signature', `ts=${ts},v1=${CryptoJS.HmacSHA256(manifest, 'segredo-errado').toString(CryptoJS.enc.Hex)}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"error.code = INVALID_SIGNATURE\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_SIGNATURE\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-signature",
+                "value": "{{webhook_signature}}"
+              },
+              {
+                "key": "x-request-id",
+                "value": "{{webhook_request_id}}"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/webhooks/mercadopago?type=payment&data.id=123456789",
+            "description": "x-signature calculada com outro segredo.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"payment.updated\",\n  \"data\": {\n    \"id\": \"123456789\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Compensações",
+      "description": "Estado final das cobranças e orçamentos depois das compensações da saga.",
+      "item": [
+        {
+          "name": "Pagamento recusado: orçamento cancelado",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'cancelled');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"orçamento cancelado\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  pm.test('pagamento failed', () => pm.expect(b.payment.status).to.eql('failed'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/os/{{os_pay_fail_id}}",
+            "description": "A saga cancela o orçamento depois do pagamento recusado. Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Reparo recusado: pagamento estornado",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (!!b.payment && b.payment.status === 'refunded');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"pagamento estornado\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "  pm.test('refunded_at preenchido', () => pm.expect(b.payment.refunded_at).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_repair_fail_id}}",
+            "description": "O execution recusou o reparo depois do pagamento; a saga pede o estorno (RefundPayment). Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Cliente recusou: orçamento sem cobrança",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"recusado e sem pagamento\", () => { pm.expect(b.status).to.eql('rejected'); pm.expect(b.payment).to.eql(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_reject_id}}",
+            "description": "Recusa não gera pagamento."
+          }
+        },
+        {
+          "name": "Falha no orçamento: OS cancelada (os-service)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Espera entre as tentativas do polling (a 1ª vai direto).",
+                  "if ((Number(pm.variables.get('poll_n')) || 0) > 0) setTimeout(() => {}, Number(pm.variables.get('poll_interval_ms')) || 500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const set = (k, v) => (pm.environment.name ? pm.environment : pm.collectionVariables).set(k, v);",
+                  "const next = (id) => ((pm.execution && pm.execution.setNextRequest) ? pm.execution.setNextRequest(id) : postman.setNextRequest(id));",
+                  "const v = (k) => pm.variables.get(k);",
+                  "const n = Number(v('poll_n')) || 0;",
+                  "const max = Number(v('poll_max')) || 60;",
+                  "let b = null;",
+                  "try { b = pm.response.json(); } catch (e) { b = null; }",
+                  "const done = pm.response.code === 200 && !!b && (b.status === 'cancelled');",
+                  "if (!done && n < max) {",
+                  "  set('poll_n', n + 1);",
+                  "  next(pm.info.requestId);",
+                  "} else {",
+                  "  set('poll_n', 0);",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test(\"OS cancelada\", () => pm.expect(done, `depois de ${n + 1} tentativas`).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{os_url}}/api/v1/service-orders/{{os_budget_fail_id}}",
+            "description": "Espera a saga compensar a falha simulada na criação do orçamento. Repete a consulta até a condição valer (poll_max × poll_interval_ms)."
+          }
+        },
+        {
+          "name": "Falha no orçamento: nenhum orçamento (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"error.code = BUDGET_NOT_FOUND\", () => pm.expect(pm.response.json().error.code).to.eql(\"BUDGET_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/os/{{os_budget_fail_id}}",
+            "description": "Com X-Simulate-Failure: budget o billing responde BudgetCreationFailed e não grava orçamento."
+          }
+        },
+        {
+          "name": "Caminho feliz: orçamento e pagamento aprovados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"aprovado e pago\", () => { pm.expect(b.status).to.eql('approved'); pm.expect(b.payment.status).to.eql('approved'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/budgets/{{budget_id}}",
+            "description": "Nada a compensar."
+          }
         }
       ]
     }
