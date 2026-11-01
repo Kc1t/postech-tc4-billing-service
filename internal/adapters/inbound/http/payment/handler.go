@@ -34,6 +34,7 @@ type SimulateRequest struct {
 // @Produce     json
 // @Param       id  path     string true "ID do pagamento (UUID)"
 // @Success     200 {object} presenter.PaymentResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
 // @Failure     401 {object} httputil.ErrorResponse
 // @Failure     403 {object} httputil.ErrorResponse
 // @Failure     404 {object} httputil.ErrorResponse

@@ -98,6 +98,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/presenter.BudgetResponse"
                         }
                     },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
@@ -148,6 +154,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/presenter.BudgetResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     },
                     "401": {
@@ -282,6 +294,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/presenter.PaymentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     },
                     "401": {

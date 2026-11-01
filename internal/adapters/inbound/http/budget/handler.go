@@ -36,6 +36,7 @@ type RejectRequest struct {
 // @Produce     json
 // @Param       id  path     string true "ID do orçamento (UUID)"
 // @Success     200 {object} presenter.BudgetResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
 // @Failure     401 {object} httputil.ErrorResponse
 // @Failure     403 {object} httputil.ErrorResponse
 // @Failure     404 {object} httputil.ErrorResponse
@@ -78,6 +79,7 @@ func (h *Handler) GetByOS(c *gin.Context) {
 // @Produce     json
 // @Param       id  path     string true "ID do orçamento (UUID)"
 // @Success     200 {object} presenter.BudgetResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
 // @Failure     401 {object} httputil.ErrorResponse
 // @Failure     403 {object} httputil.ErrorResponse
 // @Failure     404 {object} httputil.ErrorResponse
