@@ -91,9 +91,16 @@ func TestSimulate(t *testing.T) {
 	if w := post(`{"status":"approved"}`); w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}
-	for _, body := range []string{`{}`, `{"status":"pending"}`} {
-		if w := post(body); w.Code != 400 || !strings.Contains(w.Body.String(), "INVALID_REQUEST") {
+	for body, msg := range map[string]string{
+		`{}`:                   "status: é obrigatório",
+		`{"status":"pending"}`: "status: deve ser um destes: approved, rejected",
+	} {
+		w := post(body)
+		if w.Code != 400 || !strings.Contains(w.Body.String(), "INVALID_REQUEST") {
 			t.Fatalf("%s: status %d", body, w.Code)
+		}
+		if !strings.Contains(w.Body.String(), `"message":"`+msg+`"`) {
+			t.Errorf("%s: mensagem inesperada: %s", body, w.Body.String())
 		}
 	}
 	sim.EXPECT().Execute(gomock.Any(), gomock.Any()).Return(nil, domainerrors.ErrSimulationDisabled)
