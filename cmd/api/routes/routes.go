@@ -68,12 +68,14 @@ func New(o Options) *gin.Engine {
 	readers := middleware.RequireRole(entities.RoleAdmin, entities.RoleClient)
 	clients := middleware.RequireRole(entities.RoleClient)
 	admins := middleware.RequireRole(entities.RoleAdmin)
+	// Depois do papel: id de orçamento ou de pagamento que não é UUID responde 400, sem ir ao banco.
+	id := httputil.UUIDParams("id")
 
 	auth.GET("/budgets/os/:os_id", readers, o.Budget.GetByOS)
-	auth.GET("/budgets/:id", readers, o.Budget.GetByID)
-	auth.POST("/budgets/:id/approve", clients, o.Budget.Approve)
-	auth.POST("/budgets/:id/reject", clients, o.Budget.Reject)
-	auth.GET("/payments/:id", readers, o.Payment.Get)
-	auth.POST("/payments/:id/simulate", admins, o.Payment.Simulate)
+	auth.GET("/budgets/:id", readers, id, o.Budget.GetByID)
+	auth.POST("/budgets/:id/approve", clients, id, o.Budget.Approve)
+	auth.POST("/budgets/:id/reject", clients, id, o.Budget.Reject)
+	auth.GET("/payments/:id", readers, id, o.Payment.Get)
+	auth.POST("/payments/:id/simulate", admins, id, o.Payment.Simulate)
 	return r
 }
