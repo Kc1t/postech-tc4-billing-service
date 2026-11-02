@@ -89,9 +89,9 @@ func call(r http.Handler, method, path, auth, body string) *httptest.ResponseRec
 
 func TestPapeisPorRota(t *testing.T) {
 	f := setup(t, true, nil)
-	f.getByID.EXPECT().Execute(gomock.Any(), "b1", gomock.Any()).Return(ports.BudgetView{}, domainerrors.ErrBudgetNotFound).Times(2)
+	f.getByID.EXPECT().Execute(gomock.Any(), "6f1c2a7e-0001-4a51-9a3e-000000000001", gomock.Any()).Return(ports.BudgetView{}, domainerrors.ErrBudgetNotFound).Times(2)
 	f.getByOS.EXPECT().Execute(gomock.Any(), "os1", gomock.Any()).Return(ports.BudgetView{}, domainerrors.ErrBudgetNotFound).Times(2)
-	f.getPay.EXPECT().Execute(gomock.Any(), "p1", gomock.Any()).Return(nil, domainerrors.ErrPaymentNotFound).Times(2)
+	f.getPay.EXPECT().Execute(gomock.Any(), "7a2d3b8f-0002-4b62-8b4f-000000000002", gomock.Any()).Return(nil, domainerrors.ErrPaymentNotFound).Times(2)
 	f.approve.EXPECT().Execute(gomock.Any(), gomock.Any()).Return(nil, domainerrors.ErrBudgetNotFound)
 	f.reject.EXPECT().Execute(gomock.Any(), gomock.Any()).Return(nil, domainerrors.ErrBudgetNotFound)
 	f.simulate.EXPECT().Execute(gomock.Any(), gomock.Any()).Return(nil, domainerrors.ErrPaymentNotFound)
@@ -102,24 +102,31 @@ func TestPapeisPorRota(t *testing.T) {
 		want                     int
 	}{
 		// Sem token: 401 em todas as rotas protegidas.
-		{"GET", "/api/v1/budgets/b1", "", "", 401},
-		{"POST", "/api/v1/budgets/b1/approve", "", "", 401},
-		{"GET", "/api/v1/payments/p1", "", "", 401},
+		{"GET", "/api/v1/budgets/6f1c2a7e-0001-4a51-9a3e-000000000001", "", "", 401},
+		{"POST", "/api/v1/budgets/6f1c2a7e-0001-4a51-9a3e-000000000001/approve", "", "", 401},
+		{"GET", "/api/v1/payments/7a2d3b8f-0002-4b62-8b4f-000000000002", "", "", 401},
 		// Leitura: admin e cliente chegam ao caso de uso (404 aqui); mecânico não consulta cobrança.
-		{"GET", "/api/v1/budgets/b1", admin, "", 404},
-		{"GET", "/api/v1/budgets/b1", client, "", 404},
-		{"GET", "/api/v1/budgets/b1", mechanic, "", 403},
+		{"GET", "/api/v1/budgets/6f1c2a7e-0001-4a51-9a3e-000000000001", admin, "", 404},
+		{"GET", "/api/v1/budgets/6f1c2a7e-0001-4a51-9a3e-000000000001", client, "", 404},
+		{"GET", "/api/v1/budgets/6f1c2a7e-0001-4a51-9a3e-000000000001", mechanic, "", 403},
 		{"GET", "/api/v1/budgets/os/os1", admin, "", 404},
 		{"GET", "/api/v1/budgets/os/os1", client, "", 404},
-		{"GET", "/api/v1/payments/p1", admin, "", 404},
-		{"GET", "/api/v1/payments/p1", client, "", 404},
+		{"GET", "/api/v1/payments/7a2d3b8f-0002-4b62-8b4f-000000000002", admin, "", 404},
+		{"GET", "/api/v1/payments/7a2d3b8f-0002-4b62-8b4f-000000000002", client, "", 404},
 		// Decisão: só cliente.
-		{"POST", "/api/v1/budgets/b1/approve", admin, "", 403},
-		{"POST", "/api/v1/budgets/b1/approve", client, "", 404},
-		{"POST", "/api/v1/budgets/b1/reject", client, `{"reason":"caro"}`, 404},
+		{"POST", "/api/v1/budgets/6f1c2a7e-0001-4a51-9a3e-000000000001/approve", admin, "", 403},
+		{"POST", "/api/v1/budgets/6f1c2a7e-0001-4a51-9a3e-000000000001/approve", client, "", 404},
+		{"POST", "/api/v1/budgets/6f1c2a7e-0001-4a51-9a3e-000000000001/reject", client, `{"reason":"caro"}`, 404},
 		// Simulação: só admin.
-		{"POST", "/api/v1/payments/p1/simulate", client, `{"status":"approved"}`, 403},
-		{"POST", "/api/v1/payments/p1/simulate", admin, `{"status":"approved"}`, 404},
+		{"POST", "/api/v1/payments/7a2d3b8f-0002-4b62-8b4f-000000000002/simulate", client, `{"status":"approved"}`, 403},
+		{"POST", "/api/v1/payments/7a2d3b8f-0002-4b62-8b4f-000000000002/simulate", admin, `{"status":"approved"}`, 404},
+		// id que não é UUID: 400 depois da checagem de papel, sem chegar ao caso de uso.
+		{"GET", "/api/v1/budgets/b1", admin, "", 400},
+		{"GET", "/api/v1/budgets/b1", mechanic, "", 403},
+		{"POST", "/api/v1/budgets/b1/approve", client, "", 400},
+		{"POST", "/api/v1/budgets/b1/reject", client, `{"reason":"caro"}`, 400},
+		{"GET", "/api/v1/payments/p1", client, "", 400},
+		{"POST", "/api/v1/payments/p1/simulate", admin, `{"status":"approved"}`, 400},
 		// Webhook é público; sem assinatura válida → 401 (o gateway fake não tem segredo: falha fechada).
 		{"POST", "/api/v1/webhooks/mercadopago?data.id=1&type=payment", "", `{}`, 401},
 		// Públicas.

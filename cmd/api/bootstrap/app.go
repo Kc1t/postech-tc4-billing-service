@@ -145,8 +145,8 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	return a, nil
 }
 
-// paymentGateway escolhe o adapter conforme PAYMENT_GATEWAY. Com o fake, o verificador do webhook
-// fica sem segredo e recusa toda notificação (falha fechada).
+// paymentGateway escolhe o adapter conforme PAYMENT_GATEWAY. O verificador do webhook usa o
+// MP_WEBHOOK_SECRET configurado nos dois modos; sem segredo, recusa toda notificação (falha fechada).
 func (a *App) paymentGateway() (ports.PaymentGateway, ports.WebhookVerifier) {
 	verifier := mercadopago.NewSignatureVerifier(a.cfg.MPWebhookSecret, a.cfg.MPWebhookMaxAge)
 	if a.cfg.FakeGateway() {
