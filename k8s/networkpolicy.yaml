@@ -1,6 +1,9 @@
 # Entrada: só a porta HTTP do pod (os-service do namespace na API composition e o NLB do API
-# Gateway, por onde chegam cliente e webhook do Mercado Pago). Saída: DNS, Postgres (RDS) e HTTPS
-# (SQS/SNS, Mercado Pago e New Relic) — o resto é negado.
+# Gateway, por onde chegam cliente e webhook do Mercado Pago). Saída: DNS, Postgres (RDS), HTTPS
+# (SQS/SNS, Mercado Pago e New Relic) e o IMDS do nó (169.254.169.254:80), de onde o SDK da AWS
+# tira e renova as credenciais da LabRole — o resto é negado. Sem o IMDS, o pod só funciona se
+# pegar as credenciais antes de a policy entrar em vigor e para de falar com SQS/SNS quando elas
+# expiram.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -27,4 +30,10 @@ spec:
           protocol: TCP
     - ports:
         - port: 443
+          protocol: TCP
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.254/32
+      ports:
+        - port: 80
           protocol: TCP
