@@ -41,7 +41,7 @@ type Config struct {
 	DBConnMaxLifetime time.Duration
 
 	JWTSecret string
-	// CORSAllowedOrigins é a allowlist de origens do navegador (nunca "*").
+	// CORSAllowedOrigins é a allowlist de origens do navegador; "*" libera todas.
 	CORSAllowedOrigins []string
 
 	// Mensageria (SNS/SQS). Sem fila e tópico, o serviço sobe só com a API HTTP.
@@ -133,8 +133,8 @@ func (c *Config) Validate() error {
 		errs = append(errs, fmt.Errorf("PAYMENT_GATEWAY inválido %q (use mercadopago ou fake)", c.PaymentGateway))
 	}
 	for _, o := range c.CORSAllowedOrigins {
-		if strings.Contains(o, "*") {
-			errs = append(errs, errors.New("CORS_ALLOWED_ORIGINS não aceita curinga: liste as origens"))
+		if o != "*" && strings.Contains(o, "*") {
+			errs = append(errs, errors.New(`CORS_ALLOWED_ORIGINS aceita "*" sozinho (todas as origens) ou origens completas, sem curinga parcial`))
 			break
 		}
 	}

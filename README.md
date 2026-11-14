@@ -293,7 +293,7 @@ stateDiagram-v2
 - **Papel por rota**: consulta para `admin` e `client`; aprovar e recusar só para `client`; `simulate` só para `admin`. Mecânico não acessa cobrança. Papel sem acesso recebe 403 `FORBIDDEN`.
 - **Dono do recurso**: o cliente só consulta, aprova ou recusa o orçamento (e o pagamento) emitido para o próprio CPF. A claim `document` do token é comparada, só pelos dígitos, com o `requester_document` do orçamento; quem não é o dono recebe **403 `FORBIDDEN`**, mesmo com token válido. Admin consulta tudo, mas não decide no lugar do cliente.
 - **Webhook sem JWT**: a autenticidade vem da assinatura HMAC (`x-signature`), comparada em tempo constante e com falha fechada; o resultado do pagamento é sempre relido na API do Mercado Pago.
-- **CORS** só para as origens de `CORS_ALLOWED_ORIGINS`; `*` é recusado na subida.
+- **CORS** só para as origens de `CORS_ALLOWED_ORIGINS`; `*` sozinho libera todas (a resposta devolve a própria origem) e curinga parcial (`https://*.x.com`) é recusado na subida.
 - **Dados pessoais**: o CPF só aparece mascarado nos logs (`***.***.***-25`) e nunca nas respostas; o log do GORM registra SQL parametrizado, sem valores.
 - **Execução**: container sem root (UID 10001), sistema de arquivos só leitura e sem capabilities; `NetworkPolicy` com entrada só na porta 8082 e saída só para DNS, Postgres (5432) e HTTPS (443); segredos no `Secret` do Kubernetes criado pelo CI a partir dos GitHub Secrets e do Secrets Manager.
 - **Injeção de falha** (`simulate_failure`) só com `FAULT_INJECTION_ENABLED=true`.
@@ -337,7 +337,7 @@ Todas as variáveis estão em [`.env.example`](.env.example). Em desenvolvimento
 | `POSTGRES_DSN` | `postgres://postgres:postgres@localhost:5432/billing?sslmode=disable` | banco do serviço (no EKS, lido do Secrets Manager) |
 | `DB_MAX_OPEN_CONNS` / `DB_MAX_IDLE_CONNS` / `DB_CONN_MAX_LIFETIME` | `10` / `5` / `30m` | pool de conexões |
 | `JWT_SECRET` | `change-me-in-production` | segredo HS256 compartilhado com o os-service e a lambda-auth |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | allowlist separada por vírgula (`*` é recusado) |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | allowlist separada por vírgula (`*` libera todas) |
 | `AWS_REGION` / `AWS_ENDPOINT_URL` | — | região e endpoint do LocalStack em desenvolvimento (vazio na AWS) |
 | `SQS_BILLING_COMMANDS_URL` / `SNS_BILLING_EVENTS_ARN` | — | sem os dois, a mensageria fica desligada e só a API HTTP sobe |
 | `OUTBOX_POLL_INTERVAL` | `500ms` | intervalo do relay do outbox |
