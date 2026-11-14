@@ -74,6 +74,11 @@ func TestValidate(t *testing.T) {
 	if err := valid().Validate(); err != nil {
 		t.Fatalf("configuração de produção completa: %v", err)
 	}
+	todas := valid()
+	todas.CORSAllowedOrigins = []string{"*"}
+	if err := todas.Validate(); err != nil {
+		t.Fatalf(`"*" libera todas as origens: %v`, err)
+	}
 
 	cases := map[string]struct {
 		mutate func(*Config)
@@ -83,7 +88,7 @@ func TestValidate(t *testing.T) {
 		"sem token do MP":        {func(c *Config) { c.MPAccessToken = "" }, "MP_ACCESS_TOKEN"},
 		"sem segredo do webhook": {func(c *Config) { c.MPWebhookSecret = "" }, "MP_WEBHOOK_SECRET"},
 		"sem notification url":   {func(c *Config) { c.MPNotificationURL = "" }, "MP_NOTIFICATION_URL"},
-		"cors curinga":           {func(c *Config) { c.CORSAllowedOrigins = []string{"*"} }, "curinga"},
+		"cors curinga parcial":   {func(c *Config) { c.CORSAllowedOrigins = []string{"https://*.example.com"} }, "curinga parcial"},
 		"jwt vazio":              {func(c *Config) { c.JWTSecret = "" }, "JWT_SECRET é obrigatório"},
 		"jwt padrão em prod":     {func(c *Config) { c.JWTSecret = DefaultJWTSecret }, "JWT_SECRET padrão"},
 		"prod sem mensageria":    {func(c *Config) { c.BillingEventsTopicARN = "" }, "SNS_BILLING_EVENTS_ARN"},

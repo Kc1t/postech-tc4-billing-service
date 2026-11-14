@@ -179,7 +179,7 @@ func TestRequestLogger(t *testing.T) {
 
 func TestCORS(t *testing.T) {
 	r := gin.New()
-	r.Use(CORS([]string{"https://app.example.com/", "*", " "}))
+	r.Use(CORS([]string{"https://app.example.com/", " "}))
 	r.GET("/x", func(c *gin.Context) { c.Status(200) })
 	r.OPTIONS("/x", func(c *gin.Context) { c.Status(299) }) // não deve ser alcançado no preflight
 
@@ -199,7 +199,7 @@ func TestCORS(t *testing.T) {
 		t.Fatalf("preflight recusado: %d %v", w.Code, w.Header())
 	}
 	if w := get(r, "/x", map[string]string{"Origin": "https://evil.example.com"}); w.Code != 200 || w.Header().Get("Access-Control-Allow-Origin") != "" {
-		t.Fatalf("o curinga da lista é ignorado e a origem estranha não recebe CORS: %v", w.Header())
+		t.Fatalf("origem fora da lista não recebe CORS: %v", w.Header())
 	}
 	if w := get(r, "/x", map[string]string{"Origin": "https://app.example.com"}); w.Header().Get("Access-Control-Expose-Headers") != CorrelationHeader {
 		t.Fatalf("expõe o header de correlação: %v", w.Header())
@@ -232,5 +232,25 @@ func TestNewRelicContext(t *testing.T) {
 	})
 	if w := get(r, "/", nil); w.Code != 200 {
 		t.Fatal("a transação do nrgin precisa estar no ctx da requisição")
+	}
+}
+
+func TestCORS_Curinga(t *testing.T) {
+	r := gin.New()
+	r.Use(CORS([]string{"*"}))
+	r.GET("/x", func(c *gin.Context) { c.Status(200) })
+	req := httptest.NewRequest(http.MethodOptions, "/x", nil)
+	req.Header.Set("Origin", "https://qualquer.example.com")
+	req.Header.Set("Access-Control-Request-Method", "GET")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 204 || w.Header().Get("Access-Control-Allow-Origin") != "https://qualquer.example.com" || w.Header().Get("Vary") != "Origin" {
+		t.Fatalf("\"*\" libera qualquer origem no preflight: %d %v", w.Code, w.Header())
+	}
+	if w := get(r, "/x", map[string]string{"Origin": "https://outra.example.com"}); w.Header().Get("Access-Control-Allow-Origin") != "https://outra.example.com" {
+		t.Fatalf("\"*\" libera qualquer origem: %v", w.Header())
+	}
+	if w := get(r, "/x", nil); w.Code != 200 || w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("sem Origin não há CORS: %v", w.Header())
 	}
 }
